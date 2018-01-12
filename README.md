@@ -1,4 +1,4 @@
-# deep-tic-tac-toe
+# Deep tic-tac-toe
 A deep-q learner for solving the game of tic tac toe. Inspired by the deep-q learner used by Deep Mind to solve Atari games and described in the Lecture 6 of David Silver's reinforcement Learning course.
 
 ## Structure and functionality
