@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import tensorflow as tf
 
 class State:
     board = np.zeros((3,3))
@@ -15,9 +16,7 @@ def step(state, action, player):
 
     # insert
     state_ = State()
-    for i in range(3):
-        for j in range(3):
-            state_.board[i][j]  = state.board[i][j]
+    state_.board = np.copy(state.board)
     row_index = int(np.floor(action / 3))
     col_index = action % 3
     state_.board[row_index][col_index] = player
@@ -67,27 +66,61 @@ def step(state, action, player):
     else:
         terminal = 1
 
+    # checks if board is filled completely
     for row in range(3):
         for col in range(3):
             if(state_.board[row][col] == 0):
                 terminal = 0
+
     if terminal == 1:
         state_.terminal = True
         return 0, state_
+    
     reward = 0
 
     return reward, state_
 
-def extract_policy(state):
-    # this should extract the policy from the q value
-    action = random.randint(0,8)
-    while(is_valid(action,state) == False):
-        action = random.randint(0,8)
-    return action
+def extract_policy(state, w1, b1, w2, b2):
+    board = np.copy(state.board)
+    policy = None
+    best_q = None
+    for action in range(9):
+        if is_valid(action,state):
+            if policy == None:
+                policy = action
+                best_q = compute_Q_value(state, policy, w1, b1, w2, b2)
+            else:
+                new_q = compute_Q_value(state, action, w1, b1, w2, b2)
+                if new_q > best_q:
+                    policy = action
+                    best_q = new_q
+    return policy
 
-episodes = 1
+def compute_Q_value(state,action,w1,b1,w2,b2):
+    # computes associated Q value based on NN function approximator
+    q_board = np.copy(state.board)
+    q_board = np.reshape(q_board, (1,9))
+    action_board = np.zeros((1,9))
+    action_board[0][action] = 1
+    q_board = np.concatenate((q_board, action_board), axis=1)
+
+    #NN forward propogation
+    h1 = tf.tanh(tf.matmul(x, w1) + b1)
+    y = tf.tanh(tf.matmul(h1, w2) + b2)
+    q_value = sess.run(y, feed_dict = {x: q_board})
+    return (q_value)
+
+episodes = 10
 n0 = 100.0
 experience_replay = np.zeros((0,4))
+W1 = tf.Variable(tf.random_uniform([18, 9]))
+W2 = tf.Variable(tf.random_uniform([9, 1]))
+b1 = tf.Variable(tf.random_uniform([9]))
+b2 = tf.Variable(tf.random_uniform([1]))
+x = tf.placeholder(tf.float32, [None, 18])
+
+sess = tf.InteractiveSession()
+tf.global_variables_initializer().run()
 
 for e in range(episodes):
 
@@ -100,37 +133,31 @@ for e in range(episodes):
         epsilon = n0 / (n0 + e)
         if random.random() < epsilon:
             # take random action
-            action_pool = np.random.choice(9,9, replace= False)
-            for a in action_pool:
-                if is_valid(a, state):
-                    action = a
-                    break
+            action = random.randint(0,8)
+            while (is_valid(action,state) == False):
+                action = random.randint(0,8)
         else:
             # take greedy action
-            action = extract_policy(state)
+            action = extract_policy(state, W1, b1, W2, b2)
 
         r, state_ = step(state, action, player)
 
         if (state_.terminal == False):
-            # player 2 acts epsilon greedy
-            
             player = 2
             if random.random() < epsilon:
                 # take random action
-                action_pool = np.random.choice(9,9, replace= False)
-                for a in action_pool:
-                    if is_valid(a, state_):
-                        action2 = a
-                        break
+                action2 = random.randint(0,8)
+                while (is_valid(action2,state_) == False):
+                    action2 = random.randint(0,8)
             else:
                 # take greedy action
-                action2 = extract_policy(state_)
+                action2 = extract_policy(state_, W1, b1, W2, b2)
             r, state_ = step(state_, action2, player)
             
             r = -r
-            
-        print(state.board)
-        print(state_.board)
+        
+        value = compute_Q_value(state,action,W1,b1,W2,b2)
+
         D0 = State()
         D0.board = np.copy(state.board)
         D0.terminal = state.terminal
