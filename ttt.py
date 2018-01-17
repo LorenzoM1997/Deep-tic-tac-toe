@@ -2,10 +2,10 @@
 Self-learning Tic Tac Toe
 Made by Lorenzo Mambretti and Hariharan Sezhiyan
 
-Last Update: 1/15/2018 11:25 PM (Lorenzo)
-* updated the neural net
-
--- Still bugs in the train function. Would like help with that
+Last Update: 1/16/2018 9:05 PM (Lorenzo)
+    * tensorboard functionality
+    * finalized structure 
+    * improved train function
 """
 
 import random
@@ -123,51 +123,55 @@ def invert_board(state):
     return state_
 
 def play_game():
-    start_nb = input("If you would like to move first, enter 1. Otherwise, enter 2. ")
-    start = int(start_nb)
-    state = State()
-    state.board = np.zeros((3,3))
-
-    # human moves first
-    if(start == 1):
-        while(state.terminal != True):
-            move_nb = input("Please enter your move: ")
-            while(is_valid(int(move_nb), state) == False):
-                move_nb = input("Please enter a correct move: ")
-            r, state = step(state, int(move_nb))
-            
-            if(state.terminal != True):
-                action2 = extract_policy(state)
-            else:
-                print("Game finished. You won.")
-                break
-            state = invert_board(state)
-            r, state = step(state, action2)
-            state = invert_board(state)
-            if(state.terminal == True):
-                print("Game finished. You lost.")
-            print(state.board)
-
-    # ai moves first
-    else:
-        while(state.terminal != True):
-            action_pool = np.random.choice(9,9,replace = False)
-            action2 = extract_policy(state)
-            state = invert_board(state)
-            r, state = step(state, action2)
-            state = invert_board(state)
-
-            if(state.terminal != True):
+    while(true):
+        start_nb = input("If you would like to move first, enter 1. Otherwise, enter 2. ")
+        start = int(start_nb)
+        state = State()
+        state.board = np.zeros((3,3))
+    
+        # human moves first
+        if(start == 1):
+            while(state.terminal != True):
                 move_nb = input("Please enter your move: ")
                 while(is_valid(int(move_nb), state) == False):
                     move_nb = input("Please enter a correct move: ")
-            else:
-                print("Game finished. You lost.")
-                break
-            r, state = step(state, int(move_nb))
-            if(state.terminal == True):
-                print("Game finished. You won.")
-            print(state.board)
+                r, state = step(state, int(move_nb))
+                
+                if(state.terminal != True):
+                    action2 = extract_policy(state)
+                else:
+                    print("Game finished. You won.")
+                    break
+                state = invert_board(state)
+                r, state = step(state, action2)
+                state = invert_board(state)
+                if(state.terminal == True):
+                    print("Game finished. You lost.")
+                    break
+                print(state.board)
+    
+        # ai moves first
+        else:
+            while(state.terminal != True):
+                action_pool = np.random.choice(9,9,replace = False)
+                action2 = extract_policy(state)
+                state = invert_board(state)
+                r, state = step(state, action2)
+                state = invert_board(state)
+    
+                if(state.terminal != True):
+                    move_nb = input("Please enter your move: ")
+                    while(is_valid(int(move_nb), state) == False):
+                        move_nb = input("Please enter a correct move: ")
+                else:
+                    print("Game finished. You lost.")
+                    break
+                r, state = step(state, int(move_nb))
+                if(state.terminal == True):
+                    print("Game finished. You won.")
+                    break
+                print(state.board)
+
 
 def compute_Q_value(state,action):
     # computes associated Q value based on NN function approximator
@@ -182,58 +186,74 @@ def compute_Q_value(state,action):
     return (q_value)
 
 def train(experience_replay):
-    mini_batch = experience_replay[np.random.choice(experience_replay.shape[0], 64), :]
-    gamma = 0.9
-
-    batch = np.zeros((0,9), dtype=np.float32)
-    batch_ = np.zeros((0,9), dtype=np.float32)
-    action_boards = np.zeros((64,9))
+    
     action_boards_ = np.zeros((576,9))
-
-    for i in range(64):
-        new_insert1 = np.reshape(mini_batch[i][0].board, (1,9))
-        new_insert2 = np.reshape(mini_batch[i][3].board, (1,9))
-        batch = np.append(batch, new_insert1, axis = 0)
-        batch_ = np.append(batch_, new_insert2, axis = 0)
-        action_boards[i][mini_batch[i][1]] = 1
-    batch = np.concatenate((batch, action_boards), axis=1)
-    # batch will now be a 64 by 18 array
-
     for i in range(576):
         action_boards_[i][i % 9] = 1
-    batch_ = np.repeat(batch_, 9, axis=0)
-    batch_ = np.concatenate((batch_,action_boards_), axis=1)
-    # batch_ will now be a 576 by 18 array
     
-    q_target = tf.reduce_max(tf.reshape(y_old,[64,9]), axis = 1, keep_dims=True,)
-    q_t = sess.run(q_target, feed_dict = {x_old: batch_})
-    #print(q_t)
-    reward = mini_batch[:,2] # is the list of all rewards within the mini_batch
-    squared_deltas = tf.square(reward + (gamma * q_t) - y)
-    loss = tf.reduce_mean(squared_deltas)
-    print(sess.run(loss, feed_dict={x: batch}))
-    train_step = tf.train.GradientDescentOptimizer(0.05).minimize(loss)
-    for _ in range(100):
-        sess.run(train_step, feed_dict={x: batch})
+    for i in range(100):
+
+        mini_batch = experience_replay[np.random.choice(experience_replay.shape[0], 64), :]
+        action_boards = np.zeros((64,9)) 
+
+        batch = np.reshape(np.array([o.board for o in mini_batch[:,0]]), (64, 9))
+        batch_ = np.reshape(np.array([o.board for o in mini_batch[:,3]]), (64, 9))
+        for i in range(64):
+            action_boards[i][mini_batch[i][1]] = 1
+        batch = np.concatenate((batch, action_boards), axis=1)
+        # batch will now be a 64 by 18 array
+        
+        batch_ = np.repeat(batch_, 9, axis=0)
+        batch_ = np.concatenate((batch_,action_boards_), axis=1)
+        # batch_ will now be a 576 by 18 array
+        
+        r = mini_batch[:,2] # is the list of all rewards within the mini_batch
+        q_t = sess.run(q_target, feed_dict = {x_old: batch_})
+        
+        summary, _ = sess.run([merged, train_step], feed_dict={x: batch, fixed_qt: q_t, reward : r})
+        train_writer.add_summary(summary, i)
+    
     return
 
-W1 = tf.Variable(tf.random_normal([18, 9]))
-W2 = tf.Variable(tf.random_normal([9, 1]))
-b1 = tf.Variable(tf.random_normal([9]))
-b2 = tf.Variable(tf.random_normal([1]))
-x = tf.placeholder(tf.float32, [None, 18])
-h1 = tf.tanh(tf.matmul(x, W1) + b1)
-y = tf.tanh(tf.matmul(h1, W2) + b2)
+# Q learner neural network
+with tf.name_scope('Q-learner') as scope:
+    x = tf.placeholder(tf.float32, [None, 18], name='x')
+    with tf.name_scope('hidden_layer') as scope:
+        W1 = tf.Variable(tf.random_normal([18, 9]), name='W1')
+        b1 = tf.Variable(tf.random_normal([9]), name='b1')
+        h1 = tf.tanh(tf.matmul(x, W1) + b1)
+    with tf.name_scope('output_layer') as scope:
+        W2 = tf.Variable(tf.random_normal([9, 1]), name='W2')
+        b2 = tf.Variable(tf.random_normal([1]), name='b2')
+        y = tf.tanh(tf.matmul(h1, W2) + b2)
 
-W1_old = tf.Variable(tf.random_normal([18, 9]))
-W2_old = tf.Variable(tf.random_normal([9, 1]))
-b1_old = tf.Variable(tf.random_normal([9]))
-b2_old = tf.Variable(tf.random_normal([1]))
-x_old = tf.placeholder(tf.float32, [None, 18])
-h1_old = tf.tanh(tf.matmul(x_old, W1_old) + b1_old)
-y_old = tf.tanh(tf.matmul(h1_old, W2_old) + b2_old)
+# Q target neural network
+with tf.name_scope('Q-target') as scope:
+    x_old = tf.placeholder(tf.float32, [None, 18], name='x_old')
+    with tf.name_scope('hidden_layer') as scope:
+        W1_old = tf.Variable(tf.random_normal([18, 9]), name='W1_old')
+        b1_old = tf.Variable(tf.random_normal([9]), name='b1_old')
+        h1_old = tf.tanh(tf.matmul(x_old, W1_old) + b1_old, name='h1')
+    with tf.name_scope('output_layer') as scope:
+        W2_old = tf.Variable(tf.random_normal([9, 1]), name='W2_old')
+        b2_old = tf.Variable(tf.random_normal([1]), name='b2_old')
+        y_old = tf.tanh(tf.matmul(h1_old, W2_old) + b2_old, name='y_old')
+    q_target = tf.reduce_max(tf.reshape(y_old,[64,9]), axis = 1, keep_dims = True,)
+
+with tf.name_scope('loss') as scope:
+    fixed_qt = tf.placeholder(tf.float32, [None, 1])
+    reward = tf.placeholder(tf.float32, [None])
+    gamma = tf.constant(0.9, name='gamma')
+    squared_deltas = tf.square(reward + (gamma * fixed_qt) - y)
+    loss = tf.reduce_mean(squared_deltas)
+    
+train_step = tf.train.GradientDescentOptimizer(0.05).minimize(loss)
+
+tf.summary.scalar('loss', loss)
+merged = tf.summary.merge_all()
 
 sess = tf.InteractiveSession()
+train_writer = tf.summary.FileWriter('C:/Users/Lorenzo Mambretti/AppData/Local/Programs/Python/Python35/Scripts/Output', sess.graph)
 tf.global_variables_initializer().run()
 
 episodes = 1000
@@ -309,7 +329,7 @@ for e in range(episodes):
         state.board = np.copy(state_.board)
         state.terminal = state_.terminal
 
-    if(len(experience_replay) >= 64 and (e % 10) == 0):
+    if(len(experience_replay) >= 128 and (e % 10) == 0):
         print("Training")
         train(experience_replay)
         if((e % 50) == 0):
@@ -318,4 +338,5 @@ for e in range(episodes):
             tf.assign(W2_old, W2)
             tf.assign(b1_old, b1)
             tf.assign(b2_old, b2)
-# play_game()
+
+play_game()
