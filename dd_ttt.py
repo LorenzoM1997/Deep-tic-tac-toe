@@ -1,7 +1,6 @@
 """
 Self-learning Tic Tac Toe
 Made by Lorenzo Mambretti and Hariharan Sezhiyan
-
 """
 
 import random
@@ -84,8 +83,11 @@ def step(state, action):
     return 0, state_
 
 def save(W1, W2, B1, B2):
-    np.savez("weights.npz", W1, W2, B1, B2)
-    print("file weights.txt has beeen updated successfully")
+    ts = time.time()
+    st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+    filename = "weights "+ str(st)+".npz"
+    np.savez(filename, W1, W2, B1, B2)
+    print("The file has beeen saved successfully")
 
 def load():
     npzfile = np.load("weights.npz")
@@ -120,7 +122,6 @@ def invert_board(state):
                 state_.board[row][col] = 2
             elif(state.board[row][col] == 2):
                 state_.board[row][col] = 1
-
     return state_
 
 def play_game():
@@ -169,17 +170,14 @@ def convert_state_representation(state):
 
 def compute_Q_values(state):
     # computes associated Q value based on NN function approximator
-    q_board = np.zeros((1,27))
     q_board = [np.copy(convert_state_representation(state.board))]
 
     #NN forward propogation
-    q_values = sess.run(y, feed_dict = {x: q_board})
+    q_values = sess.run(y, {x: q_board})
     q_values = np.reshape(q_values, 9)
     return (q_values)
 
-def train(experience_replay, saved_W1, saved_W2, saved_b1, saved_b2, e):
-    # can modify batch size here
-    batch_size = 64
+def train():  
 
     for _ in range(4):
         # take a random mini_batch
@@ -187,24 +185,21 @@ def train(experience_replay, saved_W1, saved_W2, saved_b1, saved_b2, e):
 
         # select state, state_, action, and reward from the mini batch
         state = np.concatenate(mini_batch[:,0]).reshape((batch_size, -1))
-        act = np.array(mini_batch[:,1])
-        act = np.append([np.arange(batch_size)],[act], axis = 0)
-        act = np.transpose(act)
+        a = np.transpose(np.append([np.arange(batch_size)],[np.array(mini_batch[:,1])], axis = 0))
         r = mini_batch[:,2]
         state_ = np.concatenate(mini_batch[:,3]).reshape((batch_size, -1))
         done = mini_batch[:,4]
             
         # is the list of all rewards within the mini_batch
-        summary, _= sess.run([merged, train_step], feed_dict={  x: state,
-                                                                    x_ : state_,
-                                                                    W1_old : saved_W1,
-                                                                    W2_old : saved_W2,
-                                                                    b1_old : saved_b1,
-                                                                    b2_old : saved_b2,
-                                                                    l_done : done,
-                                                                    reward : r, 
-                                                                    action_t : act
-                                                                    })
+        summary, _= sess.run([merged, train_step], {    x: state,
+                                                        x_ : state_,
+                                                        W1_old : saved_W1,
+                                                        W2_old : saved_W2,
+                                                        b1_old : saved_b1,
+                                                        b2_old : saved_b2,
+                                                        l_done : done,
+                                                        reward : r, 
+                                                        action_t : a})
     train_writer.add_summary(summary, e)
 
 x = tf.placeholder(tf.float32, [None, 27], name='x')
@@ -214,17 +209,13 @@ x_ = tf.placeholder(tf.float32, [None, 27], name='x_')
 with tf.name_scope('Q-learner') as scope:
     
     with tf.name_scope('hidden_layer') as scope:
-        W1 = tf.get_variable("W1", shape=[27, 18],
-           initializer=tf.contrib.layers.xavier_initializer())
-        b1 = tf.get_variable("b1", shape=[18],
-           initializer=tf.contrib.layers.xavier_initializer())
+        W1 = tf.get_variable("W1", shape = [27, 18], initializer = tf.contrib.layers.xavier_initializer())
+        b1 = tf.get_variable("b1", shape = [18], initializer = tf.contrib.layers.xavier_initializer())
         h1 = tf.tanh(tf.matmul(x, W1) + b1)
         h1_alt = tf.tanh(tf.matmul(x_, W1) + b1)
     with tf.name_scope('output_layer') as scope:
-        W2 = tf.get_variable("W2", shape=[18, 9],
-           initializer=tf.contrib.layers.xavier_initializer())
-        b2 = tf.get_variable("b2", shape=[9],
-           initializer=tf.contrib.layers.xavier_initializer())
+        W2 = tf.get_variable("W2", shape=[18, 9], initializer = tf.contrib.layers.xavier_initializer())
+        b2 = tf.get_variable("b2", shape=[9], initializer=tf.contrib.layers.xavier_initializer())
         y = tf.tanh(tf.matmul(h1, W2) + b2)
         y_alt = tf.stop_gradient(tf.tanh(tf.matmul(h1_alt, W2) + b2))
         action_t = tf.placeholder(tf.int32, [None, 2])
@@ -235,26 +226,23 @@ with tf.name_scope('Q-learner') as scope:
 with tf.name_scope('Q-target') as scope:
     
     with tf.name_scope('hidden_layer') as scope:
-        W1_old = tf.placeholder(tf.float32, [27, 18], name='W1_old')
-        b1_old = tf.placeholder(tf.float32, [18], name='b1_old')
-        h1_old = tf.tanh(tf.matmul(x_, W1_old) + b1_old, name='h1')
+        W1_old = tf.placeholder(tf.float32, [27, 18], name = 'W1_old')
+        b1_old = tf.placeholder(tf.float32, [18], name = 'b1_old')
+        h1_old = tf.tanh(tf.matmul(x_, W1_old) + b1_old, name ='h1')
     with tf.name_scope('output_layer') as scope:
         W2_old =tf.placeholder(tf.float32, [18, 9], name='W2_old')
         b2_old =tf.placeholder(tf.float32, [9], name='b2_old')
         y_old = tf.tanh(tf.matmul(h1_old, W2_old) + b2_old, name='y_old')
 
-    l_done = tf.placeholder(tf.bool, [None])
-    reward = tf.placeholder(tf.float32, [None])
+    l_done = tf.placeholder(tf.bool, [None], name='done')
+    reward = tf.placeholder(tf.float32, [None], name='reward')
     gamma = tf.constant(0.99, name='gamma')
     qt_best_action = tf.argmax(y_alt, axis = 1, name='qt_best_action')
     qt_selected_action_onehot = tf.one_hot(indices = qt_best_action, depth = 9)
     qt= tf.reduce_sum( tf.multiply( y_old, qt_selected_action_onehot ) , reduction_indices=[1,] )
     q_target = tf.where(l_done, reward, reward + (gamma * qt), name='selected_max_qt')
 
-with tf.name_scope ('loss') as scope:
-    loss = tf.losses.mean_squared_error(q_target, q_learner)
-    
-#train_step = tf.train.GradientDescentOptimizer(0.03).minimize(loss)
+loss = tf.losses.mean_squared_error(q_target, q_learner)
 train_step = tf.train.RMSPropOptimizer(0.00020, momentum=0.95, use_locking=False, centered=False, name='RMSProp').minimize(loss)
 
 tf.summary.scalar('loss', loss)
@@ -264,18 +252,30 @@ sess = tf.InteractiveSession()
 train_writer = tf.summary.FileWriter('tensorflow_logs', sess.graph)
 tf.global_variables_initializer().run()
 
+# Global variables
+global experience_replay
+global batch_size
+global saved_W1, saved_W2, saved_b1, saved_b2
+global e
+
+# Hyperparameters
+batch_size = 64
 episodes = 100000
-n0 = 100.0
+epsilon_minimum = 0.05
+n0 = 100
 start_size = 500
+update_target_rate = 50
+
+# Create experience_replay
 experience_replay = np.zeros((0,5))
 
-print("All set. Start epoch")
+print("All set. Start playing")
 
 for e in range(episodes):
     # print("episode ",e)
     state = State()
     if e >= start_size:
-        epsilon = max(n0 / (n0 + (e- start_size)), 0.05)
+        epsilon = max(n0 / (n0 + (e - start_size)), epsilon_minimum)
     else: epsilon = 1
     
     if e % 2 == 1:
@@ -340,13 +340,15 @@ for e in range(episodes):
 
     if e == start_size: print("Start Training")
     if e >= start_size:
-        if (e % 50 == 0):
+        if (e % update_target_rate == 0):
             print(e)
             # here save the W1,W2,b1,B2
             saved_W1 = W1.eval()
             saved_W2 = W2.eval()
             saved_b1 = b1.eval()
             saved_b2 = b2.eval()
-        train(experience_replay, saved_W1, saved_W2, saved_b1, saved_b2, e)
+        train()
+
 print("Training completed")
+save(W1.eval(), W2.eval(), b1.eval(), b2.eval())
 play_game()
