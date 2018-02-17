@@ -6,6 +6,8 @@ Made by Lorenzo Mambretti and Hariharan Sezhiyan
 import random
 import numpy as np
 import tensorflow as tf
+import time
+import datetime
 
 class State:
     board = np.zeros((3,3))
@@ -97,21 +99,7 @@ def load():
     b2 = np.reshape(npzfile['arr_3'], (9))
     return w1, w2, b1, b2
 
-def extract_policy(state):
-    policy = None
-    q_values = compute_Q_values(state)
-    for action in range(9):
-        if is_valid(action,state):
-            if policy == None:
-                policy = action
-                best_q = q_values[action]
-            else:
-                new_q = q_values[action]
-                if new_q > best_q:
-                    policy = action
-                    best_q = new_q
-    return policy
-    
+   
 def invert_board(state):
     state_ = State()
     state_.board = np.copy(state.board)
@@ -140,7 +128,7 @@ def play_game():
                 r, state = step(state, action)
             else:
                 state = invert_board(state)
-                action = extract_policy(state)
+                action = player1.extract_policy(state)
                 start = 1
                 r, state = step(state, action)
                 r = -r
@@ -168,101 +156,123 @@ def convert_state_representation(state):
 
     return(new_board)
 
-def compute_Q_values(state):
-    # computes associated Q value based on NN function approximator
-    q_board = [np.copy(convert_state_representation(state.board))]
+class DDQN(object):
 
-    #NN forward propogation
-    q_values = sess.run(y, {x: q_board})
-    q_values = np.reshape(q_values, 9)
-    return (q_values)
+    def __init__(self):
+        self.x = tf.placeholder(tf.float32, [None, 27], name='x')
+        self.x_ = tf.placeholder(tf.float32, [None, 27], name='x_')
 
-def train():  
+        xavier =  tf.contrib.layers.xavier_initializer(uniform=True,seed=None,dtype=tf.float32)
 
-    for _ in range(4):
-        # take a random mini_batch
-        mini_batch = experience_replay[np.random.choice(experience_replay.shape[0], batch_size), :]
+        # Q learner
+        with tf.name_scope('Q-learner') as scope:
+            with tf.name_scope('hidden_layer') as scope:
+                self.W1 = tf.Variable(xavier([27, 18]))
+                self.b1 = tf.Variable(xavier([18]))
+                self.h1 = tf.tanh(tf.matmul(self.x, self.W1) + self.b1)
+                self.h1_alt = tf.tanh(tf.matmul(self.x_, self.W1) + self.b1)
+            with tf.name_scope('output_layer') as scope:
+                self.W2 = tf.Variable(xavier([18,9]))
+                self.b2 = tf.Variable(xavier([9]))
+                self.y = tf.tanh(tf.matmul(self.h1, self.W2) + self.b2)
+                self.y_alt = tf.stop_gradient(tf.tanh(tf.matmul(self.h1_alt, self.W2) + self.b2))
+                self.action_t = tf.placeholder(tf.int32, [None, 2])
+            self.q_learner = tf.gather_nd(self.y, self.action_t)
 
-        # select state, state_, action, and reward from the mini batch
-        state = np.concatenate(mini_batch[:,0]).reshape((batch_size, -1))
-        a = np.transpose(np.append([np.arange(batch_size)],[np.array(mini_batch[:,1])], axis = 0))
-        r = mini_batch[:,2]
-        state_ = np.concatenate(mini_batch[:,3]).reshape((batch_size, -1))
-        done = mini_batch[:,4]
-            
-        # is the list of all rewards within the mini_batch
-        summary, _= sess.run([merged, train_step], {    x: state,
-                                                        x_ : state_,
-                                                        W1_old : saved_W1,
-                                                        W2_old : saved_W2,
-                                                        b1_old : saved_b1,
-                                                        b2_old : saved_b2,
-                                                        l_done : done,
-                                                        reward : r, 
-                                                        action_t : a})
-    train_writer.add_summary(summary, e)
+        # Q target
+        with tf.name_scope('Q-target') as scope:
+            with tf.name_scope('hidden_layer') as scope:
+                self.W1_old = tf.placeholder(tf.float32, [27, 18], name = 'W1_old')
+                self.b1_old = tf.placeholder(tf.float32, [18], name = 'b1_old')
+                self.h1_old = tf.tanh(tf.matmul(self.x_, self.W1_old) + self.b1_old, name ='h1')
+            with tf.name_scope('output_layer') as scope:
+                self.W2_old =tf.placeholder(tf.float32, [18, 9], name='W2_old')
+                self.b2_old =tf.placeholder(tf.float32, [9], name='b2_old')
+                self.y_old = tf.tanh(tf.matmul(self.h1_old, self.W2_old) + self.b2_old, name='y_old')
 
-x = tf.placeholder(tf.float32, [None, 27], name='x')
-x_ = tf.placeholder(tf.float32, [None, 27], name='x_')
+            self.l_done = tf.placeholder(tf.bool, [None], name='done')
+            self.reward = tf.placeholder(tf.float32, [None], name='reward')
+            self.gamma = tf.constant(0.99, name='gamma')
+            self.qt_best_action = tf.argmax(self.y_alt, axis = 1, name='qt_best_action')
+            self.qt_selected_action_onehot = tf.one_hot(indices = self.qt_best_action, depth = 9)
+            self.qt= tf.reduce_sum( tf.multiply( self.y_old, self.qt_selected_action_onehot ) , reduction_indices=[1,] )
+            self.q_target = tf.where(self.l_done, self.reward, self.reward + (self.gamma * self.qt), name='selected_max_qt')
 
-# Q learner neural network
-with tf.name_scope('Q-learner') as scope:
-    
-    with tf.name_scope('hidden_layer') as scope:
-        W1 = tf.get_variable("W1", shape = [27, 18], initializer = tf.contrib.layers.xavier_initializer())
-        b1 = tf.get_variable("b1", shape = [18], initializer = tf.contrib.layers.xavier_initializer())
-        h1 = tf.tanh(tf.matmul(x, W1) + b1)
-        h1_alt = tf.tanh(tf.matmul(x_, W1) + b1)
-    with tf.name_scope('output_layer') as scope:
-        W2 = tf.get_variable("W2", shape=[18, 9], initializer = tf.contrib.layers.xavier_initializer())
-        b2 = tf.get_variable("b2", shape=[9], initializer=tf.contrib.layers.xavier_initializer())
-        y = tf.tanh(tf.matmul(h1, W2) + b2)
-        y_alt = tf.stop_gradient(tf.tanh(tf.matmul(h1_alt, W2) + b2))
-        action_t = tf.placeholder(tf.int32, [None, 2])
+        self.loss = tf.losses.mean_squared_error(self.q_target, self.q_learner)
+        self.train_step = tf.train.RMSPropOptimizer(0.00020, momentum=0.95, use_locking=False, centered=False, name='RMSProp').minimize(self.loss)
+        tf.summary.scalar('loss', self.loss)
+        self.merged = tf.summary.merge_all()
+        
+        tf.global_variables_initializer().run()
 
-    q_learner = tf.gather_nd(y, action_t)
+    def update_old_weights(self):
+        self.saved_W1 = self.W1.eval()
+        self.saved_W2 = self.W2.eval()
+        self.saved_b1 = self.b1.eval()
+        self.saved_b2 = self.b2.eval()
 
-# Q target neural network
-with tf.name_scope('Q-target') as scope:
-    
-    with tf.name_scope('hidden_layer') as scope:
-        W1_old = tf.placeholder(tf.float32, [27, 18], name = 'W1_old')
-        b1_old = tf.placeholder(tf.float32, [18], name = 'b1_old')
-        h1_old = tf.tanh(tf.matmul(x_, W1_old) + b1_old, name ='h1')
-    with tf.name_scope('output_layer') as scope:
-        W2_old =tf.placeholder(tf.float32, [18, 9], name='W2_old')
-        b2_old =tf.placeholder(tf.float32, [9], name='b2_old')
-        y_old = tf.tanh(tf.matmul(h1_old, W2_old) + b2_old, name='y_old')
+    def compute_Q_values(self,state):
+        # computes associated Q value based on NN function approximator
+        q_board = [np.copy(convert_state_representation(state.board))]
 
-    l_done = tf.placeholder(tf.bool, [None], name='done')
-    reward = tf.placeholder(tf.float32, [None], name='reward')
-    gamma = tf.constant(0.99, name='gamma')
-    qt_best_action = tf.argmax(y_alt, axis = 1, name='qt_best_action')
-    qt_selected_action_onehot = tf.one_hot(indices = qt_best_action, depth = 9)
-    qt= tf.reduce_sum( tf.multiply( y_old, qt_selected_action_onehot ) , reduction_indices=[1,] )
-    q_target = tf.where(l_done, reward, reward + (gamma * qt), name='selected_max_qt')
+        #NN forward propogation
+        q_values = sess.run(self.y, {self.x: q_board})
+        q_values = np.reshape(q_values, 9)
+        return (q_values)
 
-loss = tf.losses.mean_squared_error(q_target, q_learner)
-train_step = tf.train.RMSPropOptimizer(0.00020, momentum=0.95, use_locking=False, centered=False, name='RMSProp').minimize(loss)
+    def extract_policy(self,state):
+        policy = None
+        q_values = self.compute_Q_values(state)
+        for action in range(9):
+            if is_valid(action,state):
+                if policy == None:
+                    policy = action
+                    best_q = q_values[action]
+                else:
+                    new_q = q_values[action]
+                    if new_q > best_q:
+                        policy = action
+                        best_q = new_q
+        return policy
 
-tf.summary.scalar('loss', loss)
-merged = tf.summary.merge_all()
+    def train(self):
+        for _ in range(4):
+            # take a random mini_batch
+            mini_batch = experience_replay[np.random.choice(experience_replay.shape[0], batch_size), :]
+
+            # select state, state_, action, and reward from the mini batch
+            state = np.concatenate(mini_batch[:,0]).reshape((batch_size, -1))
+            a = np.transpose(np.append([np.arange(batch_size)],[np.array(mini_batch[:,1])], axis = 0))
+            r = mini_batch[:,2]
+            state_ = np.concatenate(mini_batch[:,3]).reshape((batch_size, -1))
+            done = mini_batch[:,4]
+                
+            # is the list of all rewards within the mini_batch
+            summary, _= sess.run([self.merged, self.train_step], {  self.x: state,
+                                                                    self.x_ : state_,
+                                                                    self.W1_old : self.saved_W1,
+                                                                    self.W2_old : self.saved_W2,
+                                                                    self.b1_old : self.saved_b1,
+                                                                    self.b2_old : self.saved_b2,
+                                                                    self.l_done : done,
+                                                                    self.reward : r, 
+                                                                    self.action_t : a})
+        train_writer.add_summary(summary, e)
 
 sess = tf.InteractiveSession()
 train_writer = tf.summary.FileWriter('tensorflow_logs', sess.graph)
-tf.global_variables_initializer().run()
+
 
 # Global variables
 global experience_replay
 global batch_size
-global saved_W1, saved_W2, saved_b1, saved_b2
 global e
 
 # Hyperparameters
 batch_size = 64
 episodes = 100000
-epsilon_minimum = 0.05
-n0 = 100
+epsilon_minimum = 0.1
+n0 = 150
 start_size = 500
 update_target_rate = 50
 
@@ -270,6 +280,10 @@ update_target_rate = 50
 experience_replay = np.zeros((0,5))
 
 print("All set. Start playing")
+
+# Create players
+player1 = DDQN()
+#player2 = DDQN() not used yet *** future improvements coming
 
 for e in range(episodes):
     # print("episode ",e)
@@ -290,7 +304,7 @@ for e in range(episodes):
                         break
             else:
                 # take greedy action
-                action = extract_policy(state)
+                action = player1.extract_policy(state)
 
             r, state = step(state, action)
             state = invert_board(state)
@@ -308,7 +322,7 @@ for e in range(episodes):
                     break
         else:
             # take greedy action
-            action = extract_policy(state)
+            action = player1.extract_policy(state)
 
         r, state_ = step(state, action)
 
@@ -324,7 +338,7 @@ for e in range(episodes):
                         break
             else:
                 # take greedy action
-                action2 = extract_policy(state_)
+                action2 = player1.extract_policy(state_) # in the future, it will be player2
 
             r, state_ = step(state_, action2)
             state_ = invert_board(state_)
@@ -343,12 +357,10 @@ for e in range(episodes):
         if (e % update_target_rate == 0):
             print(e)
             # here save the W1,W2,b1,B2
-            saved_W1 = W1.eval()
-            saved_W2 = W2.eval()
-            saved_b1 = b1.eval()
-            saved_b2 = b2.eval()
-        train()
+            player1.update_old_weights()
+
+        player1.train()
 
 print("Training completed")
-save(W1.eval(), W2.eval(), b1.eval(), b2.eval())
+save(player1.W1.eval(), player1.W2.eval(), player1.b1.eval(), player1.b2.eval())
 play_game()
