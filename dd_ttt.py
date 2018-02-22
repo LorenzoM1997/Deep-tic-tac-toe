@@ -2,7 +2,6 @@
 Self-learning Tic Tac Toe
 Made by Lorenzo Mambretti and Hariharan Sezhiyan
 """
-
 import random
 import numpy as np
 import tensorflow as tf
@@ -162,6 +161,11 @@ class DDQN(object):
         self.x = tf.placeholder(tf.float32, [None, 27], name='x')
         self.x_ = tf.placeholder(tf.float32, [None, 27], name='x_')
 
+        # for testing against random play
+        self.tie_rate_value = 0.0
+        self.win_rate_value = 0.0
+        self.loss_rate_value = 0.0
+
         xavier =  tf.contrib.layers.xavier_initializer(uniform=True,seed=None,dtype=tf.float32)
 
         # Q learner
@@ -199,8 +203,14 @@ class DDQN(object):
             self.q_target = tf.where(self.l_done, self.reward, self.reward + (self.gamma * self.qt), name='selected_max_qt')
 
         self.loss = tf.losses.mean_squared_error(self.q_target, self.q_learner)
+        self.tie_rate = tf.placeholder(tf.float32, name='tie_rate')
+        self.win_rate = tf.placeholder(tf.float32, name='win_rate')
+        self.loss_rate = tf.placeholder(tf.float32, name='loss_rate')
         self.train_step = tf.train.RMSPropOptimizer(0.00020, momentum=0.95, use_locking=False, centered=False, name='RMSProp').minimize(self.loss)
         tf.summary.scalar('loss', self.loss)
+        tf.summary.scalar('tie_rate', self.tie_rate)
+        tf.summary.scalar('win_rate', self.win_rate)
+        tf.summary.scalar('loss_rate', self.loss_rate)
         self.merged = tf.summary.merge_all()
         
         tf.global_variables_initializer().run()
@@ -256,8 +266,48 @@ class DDQN(object):
                                                                     self.b2_old : self.saved_b2,
                                                                     self.l_done : done,
                                                                     self.reward : r, 
-                                                                    self.action_t : a})
+                                                                    self.action_t : a,
+                                                                    self.tie_rate : self.tie_rate_value,
+                                                                    self.win_rate : self.win_rate_value,
+                                                                    self.loss_rate : self.loss_rate_value})
         train_writer.add_summary(summary, e)
+
+    def random_play_test(self):
+        numTests = 100
+        numWins = 0
+        numLosses = 0
+        numTies = 0
+        state = State()
+
+        for _ in range(numTests):
+            state.board = np.zeros((3,3))
+            state.terminal = False
+            turn = 1
+            while not state.terminal:
+                if turn == 1:
+                    action = self.extract_policy(state) # agent action
+                    r, state = step(state, action)
+                    turn = 0
+                else:
+                    state = invert_board(state)
+                    action = np.random.randint(9)
+                    while(is_valid(action, state) == False):
+                        action = np.random.randint(9)
+                    r, state = step(state, action)
+                    r = -r
+                    state = invert_board(state)
+                    turn = 1
+
+            if r == 0:
+                numTies += 1
+            elif r == 1:
+                numWins += 1
+            else:
+                numLosses += 1
+
+        self.tie_rate_value = numTies
+        self.win_rate_value = numWins
+        self.loss_rate_value = numLosses
 
 sess = tf.InteractiveSession()
 train_writer = tf.summary.FileWriter('tensorflow_logs', sess.graph)
@@ -272,7 +322,7 @@ global e
 batch_size = 64
 episodes = 100000
 epsilon_minimum = 0.1
-n0 = 150
+n0 = 100
 start_size = 500
 update_target_rate = 50
 
@@ -290,7 +340,8 @@ for e in range(episodes):
     state = State()
     if e >= start_size:
         epsilon = max(n0 / (n0 + (e - start_size)), epsilon_minimum)
-    else: epsilon = 1
+    else:
+        epsilon = 1
     
     if e % 2 == 1:
         # this is player 2's turn
@@ -358,8 +409,10 @@ for e in range(episodes):
             print(e)
             # here save the W1,W2,b1,B2
             player1.update_old_weights()
+            player1.random_play_test()
 
         player1.train()
+
 
 print("Training completed")
 save(player1.W1.eval(), player1.W2.eval(), player1.b1.eval(), player1.b2.eval())
