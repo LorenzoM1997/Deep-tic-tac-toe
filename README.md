@@ -6,6 +6,7 @@ Needs numpy and tensorflow to work properly. The code is currently using Tensorf
 
     pip3 install --upgrade numpy
     pip3 install --upgrade tensorflow
+    pip install progressbar
 
 You can follow the instruction in the official Tensorflow website if you want to install it through Anaconda or if you prefer to use tensorflow-gpu.
 
@@ -23,7 +24,12 @@ In the file "ddd_ttt.py" a Double-DQN, also inspired by a Deepmind paper, has be
 ## Versions
 In the file "dd_ttt.py" several improvement have been made in the algorithm. The player is now enclosed in a class and the algorithm has been modified to implement a Double-DQN. The loss reached is equivalent or lower than the one achieved by DQN. However, the best final policy achieved still belongs to DQN. This is the reason why both version are available at the moment.  In the future, we expect the Double-DQN to achieve better results.
 
+The latest version is in the main.py, which uses a simple monte carlo tree search to explore the possibilities.
+
 ## Run
+To run the Monte Carlo Tree Search algorithm, type in your terminal
+    python main.py
+
 To run the DQN algorithm, type in your terminal
 
     python3 ttt.py
@@ -34,7 +40,7 @@ To run the DDQN algorithm, type in your terminal
 The game will ask you to play a match immediately after the training has finished and the data has been saved.
 
 ## Results
-The best result achieved for now was quasi-human performance after 60K episodes. Improved hyperparameters are likely to produce human performance in less or equal number of episodes.
+The best result achieved for now was human-like performance after 100K episodes.
 
 ## Contact
 Please write at lorenz.m97@gmail.com if you need more information.
