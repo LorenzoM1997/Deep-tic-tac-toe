@@ -6,6 +6,10 @@ class TicTacToe:
         self.board = np.zeros((3,3),dtype="int")
         self.terminal = False
 
+    def restart(self):
+        self.board = np.zeros((3,3),dtype="int")
+        self.terminal = False
+
     def is_valid(self, action):
         if self.board[int(np.floor(action / 3))][action % 3] != 0:
             return False
