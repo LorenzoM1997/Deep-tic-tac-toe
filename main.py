@@ -7,6 +7,8 @@ Last Update: 8/3/2018 5:55 PM (Lorenzo)
 import random
 import numpy as np
 import progressbar
+import pickle
+import os
 from nn import NN
 from Games import TicTacToe
 
@@ -154,10 +156,6 @@ def simulation(episodes):
                 mct[node[0]].update(r)
     bar.finish()
         
-mct = []
-game = TicTacToe()
-mct.append(Node(game))
-
 def play():
     global mct
     global game
@@ -204,13 +202,44 @@ def play():
                 mct[node[0]].update(-r)
             else:
                 mct[node[0]].update(r)
-    
+
+# create game
+game = TicTacToe()
+
+# initialize Monte carlo Tree
+mct_filename = "mct.txt"
+
+if os.path.isfile(mct_filename):
+    # load existing file
+    print("Found existing Monte Carlo Tree file. Opening it")
+    with open(mct_filename, "rb") as fp:   # Unpickling
+        mct = pickle.load(fp)
+else:
+    print("Creating new Monte Carlo Tree.")
+    mct = []
+    mct.append(Node(game))
+
+# SIMULATION: playing and updating Monte Carlo Tree
 print("Simulating episodes")
-simulation(100000)
+if len(mct) > 30000:
+    # the mct has already a good size, train it just a little bit more
+    simulation(5000)
+else:
+    # mct is small, make a lot of simulations
+    simulation(100000)
 print("Simulation terminated.")
+
+# SAVE FILE
+with open(mct_filename, "wb") as fp:   #Pickling
+    pickle.dump(mct, fp)
+print("Monte Carlo Tree saved correctly")
+
+# TRAINING: neural network is trained on the Monte Carlo Tree
 nn = NN(64)
 print("Starting Training Neural Network")
-nn.train(mct, 100)
+nn.train(mct, 100000)
 print("Training terminated.")
+
+# play: Human vs Machine
 print("Play new game.")
 play()
