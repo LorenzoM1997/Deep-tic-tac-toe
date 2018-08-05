@@ -43,4 +43,4 @@ The game will ask you to play a match immediately after the training has finishe
 The best result achieved for now was human-like performance after 100K episodes.
 
 ## Contact
-Please write at lorenz.m97@gmail.com if you need more information.
+Please write at lmambretti@ucdavis.edu if you need more information.
