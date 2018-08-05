@@ -10,11 +10,25 @@ import progressbar
 from nn import NN
 from Games import TicTacToe
 
+def convert_board_representation(state):
+    new_board = np.zeros(27)
+    for row in range(3):
+        for col in range(3):
+            if(state[row][col] == 0):
+                new_board[9 * row + 3 * col] = 1
+            elif(state[row][col] == 1):
+                new_board[9 * row + 3 * col + 1] = 1
+            else:
+                new_board[9 * row + 3 * col + 2] = 1
+
+    return(new_board)
+
 class Node:    
-    def __init__(self):
+    def __init__(self, game):
         self.N = 0
         self.V = 0
         self.Child_nodes = []
+        self.board = convert_board_representation(game.board)
         
     def update(self,r):
         self.V = self.V + r
@@ -26,7 +40,7 @@ class Node:
         else:
             return self.V/self.N
 
-def check_new_node(s, current_node):
+def check_new_node(game, current_node):
     """
     this function check if it is the first time the player visited the current node
     if it is the first time, create all the child nodes
@@ -35,26 +49,26 @@ def check_new_node(s, current_node):
     if current_node.N == 0:
         # generate child nodes
         for a in range(9):
-            if s.is_valid(a) == True:
+            if game.is_valid(a) == True:
                 current_node.Child_nodes.append(len(mct))
-                mct.append(Node())
+                mct.append(Node(game))
             else:
                 current_node.Child_nodes.append(None)
 
     
 
-def random_move(s, current_node):
+def random_move(game, current_node):
 
     global mct
-    check_new_node(s, current_node) #check if it is a new node
+    check_new_node(game, current_node) #check if it is a new node
 
     #random action
     a = random.randint(0,8)
-    while s.is_valid(a) == False:
+    while game.is_valid(a) == False:
         a = (a + 1) % 9
     return a
 
-def choose_move(s,current_node):
+def choose_move(game,current_node):
     
     global mct
     
@@ -62,15 +76,15 @@ def choose_move(s,current_node):
     if current_node.N == 0:
         # generate child nodes
         for a in range(9):
-            if s.is_valid(a) == True:
+            if game.is_valid(a) == True:
                 current_node.Child_nodes.append(len(mct))
-                mct.append(Node())
+                mct.append(Node(game))
             else:
                 current_node.Child_nodes.append(None) 
 
         #random action
         a = random.randint(0,8)
-        while s.is_valid(a) == False:
+        while game.is_valid(a) == False:
             a = (a + 1) % 9
         return a
 
@@ -88,8 +102,9 @@ def choose_move(s,current_node):
                 #print("None")
         return best_a
 
-def training(episodes):
+def simulation(episodes):
     global mct
+    global game
     epsilon = 0.1
     node_list = [[]]
 
@@ -104,27 +119,27 @@ def training(episodes):
             bar.update(e)
         
         player = e % 2          # choose player
-        s = TicTacToe()             # empty board
+        game.restart()             # empty board
         node_list.clear()
         current_node = mct[0]   # root of the tree is current node
         node_list.append([0,player])
 
         # while state not terminal
-        while s.terminal == False:
+        while game.terminal == False:
             #choose move
             if player == 0:
                 #if player 1 not random
-                a = choose_move(s, current_node)
-                r = s.step(a)
+                a = choose_move(game, current_node)
+                r = game.step(a)
             else:
                 #if player 2 epsilon-greedy
                 if random.random() < epsilon:
-                    a = random_move(s, current_node)
+                    a = random_move(game, current_node)
                 else:
-                    a = choose_move(s, current_node)
-                s.invert_board()
-                r = - s.step(a)
-                s.invert_board()
+                    a = choose_move(game, current_node)
+                game.invert_board()
+                r = - game.step(a)
+                game.invert_board()
 
             current_node = mct[current_node.Child_nodes[a]]
             player = (player + 1) % 2
@@ -140,41 +155,43 @@ def training(episodes):
     bar.finish()
         
 mct = []
-mct.append(Node())
+game = TicTacToe()
+mct.append(Node(game))
 
 def play():
     global mct
+    global game
     node_list = [[]]
     
     while True:
-        player = random.randint(0,1)          # choose player
-        s = TicTacToe()             # empty board
+        player = random.randint(0,1)    # choose player
+        game.restart()                  # empty board
         node_list.clear()
         current_node = mct[0]   # root of the tree is current node
 
         # while state not terminal
-        while s.terminal == False:
-            s.render()
+        while game.terminal == False:
+            game.render()
             #choose move
             if player == 0:
                 #if player 1 not random
-                a = choose_move(s, current_node)
-                r = s.step(a)
+                a = choose_move(game, current_node)
+                r = game.step(a)
             else:
                 #if player 2 random
                 a = int(input("Please enter your move: "))
-                while(s.is_valid(a) == False):
+                while(game.is_valid(a) == False):
                     a = int(input("Please enter a correct move: "))
-                check_new_node(s, current_node)
-                s.invert_board()
-                r = - s.step(a)
-                s.invert_board()
+                check_new_node(game, current_node)
+                game.invert_board()
+                r = - game.step(a)
+                game.invert_board()
 
             current_node = mct[current_node.Child_nodes[a]]
             player = (player + 1) % 2
             node_list.append([mct.index(current_node),player])
 
-        s.render()        
+        game.render()        
         if r == 0:
             print ("Tie")
         elif r == -1:
@@ -189,9 +206,11 @@ def play():
                 mct[node[0]].update(r)
     
 print("Simulating episodes")
-training(100000)
+simulation(100000)
 print("Simulation terminated.")
+nn = NN(64)
 print("Starting Training Neural Network")
+nn.train(mct, 100)
 print("Training terminated.")
 print("Play new game.")
 play()
