@@ -2,13 +2,12 @@
 Self-learning Tic Tac Toe
 Made by Lorenzo Mambretti
 
-Last Update: 8/3/2018 5:55 PM (Lorenzo)
+Last Update: 8/6/2018 10:55 AM (Lorenzo)
 """
 import random
 import numpy as np
 import progressbar
-import pickle
-import os
+from File_storage import *
 from nn import NN
 from Games import TicTacToe
 
@@ -207,17 +206,9 @@ def play():
 game = TicTacToe()
 
 # initialize Monte carlo Tree
-mct_filename = "mct.txt"
-
-if os.path.isfile(mct_filename):
-    # load existing file
-    print("Found existing Monte Carlo Tree file. Opening it")
-    with open(mct_filename, "rb") as fp:   # Unpickling
-        mct = pickle.load(fp)
-else:
-    print("Creating new Monte Carlo Tree.")
-    mct = []
-    mct.append(Node(game))
+mct = load_mct()
+if mct == []:
+     mct.append(Node(game))
 
 # SIMULATION: playing and updating Monte Carlo Tree
 print("Simulating episodes")
@@ -230,14 +221,17 @@ else:
 print("Simulation terminated.")
 
 # SAVE FILE
-with open(mct_filename, "wb") as fp:   #Pickling
-    pickle.dump(mct, fp)
-print("Monte Carlo Tree saved correctly")
+save_mct(mct)
 
 # TRAINING: neural network is trained on the Monte Carlo Tree
-nn = NN(64)
+nn = NN(0.001, 64)
+
+#sanity check
+nn.train(mct, 1, 10000)
+
+# actual training
 print("Starting Training Neural Network")
-nn.train(mct, 100000)
+nn.train(mct, 100000, 2)
 print("Training terminated.")
 
 # play: Human vs Machine
