@@ -2,13 +2,15 @@
 A deep-q learner for solving the game of tic tac toe. Inspired by the deep-q learner used by Deep Mind to solve Atari games and described in the Lecture 6 of David Silver's reinforcement Learning course.
 
 ## Install
-Needs numpy and tensorflow to work properly. The code is currently using Tensorflow 1.5, but it is likely to work also with less recent versions. You can use the native install.
+Needs numpy and tensorflow to work properly. The code is currently using Tensorflow 1.9, but it is likely to work also with less recent versions. You can use the native pip install.
 
     pip3 install --upgrade numpy
     pip3 install --upgrade tensorflow
     pip install progressbar
 
-You can follow the instruction in the official Tensorflow website if you want to install it through Anaconda or if you prefer to use tensorflow-gpu.
+You can follow the instruction in the official Tensorflow website if you want to install it through Anaconda. If you have a CUDA-compatible Nvidia graphic card, I suggest to install the gpu version for better performances.
+
+    pip install --upgrade tensorflow-gpu
 
 ## Structure and functionality
 The algorithm uses experience replay and fixed Q-targets
@@ -28,8 +30,8 @@ The latest version is in the main.py, which uses a simple monte carlo tree searc
 
 ## Run
 To run the Monte Carlo Tree Search algorithm, type in your terminal
-    python main.py
 
+    python main.py
 To run the DQN algorithm, type in your terminal
 
     python3 ttt.py
@@ -40,7 +42,7 @@ To run the DDQN algorithm, type in your terminal
 The game will ask you to play a match immediately after the training has finished and the data has been saved.
 
 ## Results
-The best result achieved for now was human-like performance after 100K episodes.
+The best result achieved for now was human-like performance after 100K episodes, in the Monte Carlo tree version.
 
 ## Contact
 Please write at lmambretti@ucdavis.edu if you need more information.
