@@ -14,14 +14,23 @@ class NN:
     x = tf.placeholder(tf.float32,[None, 27], name='x')
     
     """
-    HIDDEN LAYER
-    18 neurons
+    HIDDEN LAYER 1
+    21 neurons
     tanh
     """
-    with tf.name_scope('Hidden_layer') as scope:
-        W1 = tf.Variable(tf.zeros([27,18]), name='W1') #FIXME random uniform
-        b1 = tf.Variable(tf.zeros([18]), name='b1') #FIXME random uniform
+    with tf.name_scope('Hidden_layer_1') as scope:
+        W1 = tf.Variable(tf.random_uniform([27,21], minval = -1, maxval = 1), name='W1')
+        b1 = tf.Variable(tf.random_uniform([21], minval = -1, maxval = 1), name='b1')
         h1 = tf.tanh(tf.matmul(x, W1) + b1)
+    """
+    HIDDEN LAYER 1
+    15 neurons
+    tanh
+    """
+    with tf.name_scope('Hidden_layer_2') as scope:
+        W2 = tf.Variable(tf.random_uniform([21,15], minval = -1, maxval = 1), name='W2')
+        b2 = tf.Variable(tf.random_uniform([15], minval = -1, maxval = 1), name='b2')
+        h2 = tf.tanh(tf.matmul(h1, W2) + b2)
     
     """
     OUTPUT LAYER
@@ -29,9 +38,9 @@ class NN:
     tanh
     """
     with tf.name_scope('Output_layer') as scope:
-        W2 = tf.Variable(tf.zeros([18,9])) #FIXME random uniform
-        b2 = tf.Variable(tf.zeros([9])) #FIXME random uniform
-        y_ = tf.tanh(tf.matmul(h1, W2) + b2)
+        W3 = tf.Variable(tf.random_uniform([15,9], minval = -1, maxval = 1))
+        b3 = tf.Variable(tf.random_uniform([9], minval = -1, maxval = 1))
+        y_ = tf.tanh(tf.matmul(h2, W3) + b3)
 
     y = tf.placeholder(tf.float32,[None, 9], name="y")
 
@@ -41,23 +50,24 @@ class NN:
     or try the fastai library optimizers
     """
     loss = tf.losses.mean_squared_error(y_,y)
-    train_step = tf.train.AdamOptimizer(0.01).minimize(loss)
+    train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
-    def __init__(self, batch_size = 64):
+    def __init__(self, lr, batch_size = 64):
         self.batch_size = batch_size
-
-    def train(self, mct, iterations):
-
-        global cwd
-
+        self.train_step = tf.train.AdamOptimizer(lr).minimize(self.loss)
+        
         # summaries
         tf.summary.scalar('loss', self.loss)
         self.summaries = tf.summary.merge_all()
 
         # start training session
-        sess = tf.InteractiveSession()
-        train_writer = tf.summary.FileWriter(cwd, sess.graph)
+        self.sess = tf.InteractiveSession()
+        self.train_writer = tf.summary.FileWriter(cwd, self.sess.graph)
         tf.global_variables_initializer().run()
+
+    def train(self, mct, iterations, training_steps):
+        
+        global cwd
 
         # create batches
         input_batch = np.zeros((self.batch_size, 27))
@@ -84,11 +94,13 @@ class NN:
                             action_matrix[a] = -1
                     output_batch[b] = action_matrix
 
-            summary, _ = sess.run([self.summaries, self.train_step],
-                                  feed_dict={ self.x: input_batch,
-                                              self.y: output_batch})
-            train_writer.add_summary(summary, i)
-                
+            for j in range(training_steps):
+                summary, _ = self.sess.run([self.summaries, self.train_step],
+                                      feed_dict={ self.x: input_batch,
+                                                  self.y: output_batch})
+                self.train_writer.add_summary(summary, i)
+        print("loss: ",self.sess.run(self.loss, feed_dict={self.x: input_batch,
+                                                           self.y: output_batch}))
 
     def run(self,input_data):
         """
@@ -99,5 +111,5 @@ class NN:
         v           a 9d float array with the q values of all the actions
         """
         
-        v = sess.run(y_, feed_dict={ x: input_data})
+        v = self.sess.run(y_, feed_dict={ x: input_data})
         return v
