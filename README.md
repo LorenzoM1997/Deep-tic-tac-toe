@@ -1,35 +1,36 @@
-# Deep tic-tac-toe
-A deep-q learner for solving the game of tic tac toe. Inspired by the deep-q learner used by Deep Mind to solve Atari games and described in the Lecture 6 of David Silver's reinforcement Learning course.
+# Deep Tic Tac Toe
+Here is implemented a simplified version of Alpha Zero, reinforcement learning developed by Google Deep Mind for chess. Here it is re-purposed to play tic tac toe. Being much simpler than chess, it needs less time to train and it uses more heavily the Monte Carlo Tree search, and the neural network plays a minor role.
 
 ## Install
-Needs numpy and tensorflow to work properly. The code is currently using Tensorflow 1.9, but it is likely to work also with less recent versions. You can use the native pip install.
+Needs numpy,tensorflow and progressbar to work properly. The code is currently using Tensorflow 1.9, but it is likely to work also with less recent versions. You can use the native pip install.
 
     pip3 install --upgrade numpy
     pip3 install --upgrade tensorflow
     pip install progressbar
 
-You can follow the instruction in the official Tensorflow website if you want to install it through Anaconda. If you have a CUDA-compatible Nvidia graphic card, I suggest to install the gpu version for better performances.
+You can follow the instruction in the official Tensorflow website if you want to install it through Anaconda. If you have a CUDA-compatible Nvidia GPU, I suggest to install the gpu version for better performances.
 
     pip install --upgrade tensorflow-gpu
 
 ## Structure and functionality
-The algorithm uses experience replay and fixed Q-targets
-* Take action according to epsilon-greedy policy
-* Store transition (s, a, r, s_) in replay memory D
-* Sample random mini-batch of transitions (s, a, r, s_) from D
-* Compute Q-learning targets with respect to old, fixde parameters W_
-* Optimize MSE between Q-network and Q-learning targets
-* Using gradient descent to minimize error
+The algorithm implements a Monte Carlo Tree to explore the board. After an initial exploration using the monte carlo tree search, the network start training a deep dense neural network. The monte carlo tree explores the games always until the end, the training is therefore online.
 
-In the file "ddd_ttt.py" a Double-DQN, also inspired by a Deepmind paper, has been implemented.
+The neural networks has 3 hidden layes, for a total of 99 neurons. It is trained using the Adam Optimizer provided by tensorflow with a learning rate of 0.00025, 200k iterations in total with batches randomly chosen from the nodes of the monte carlo tree.
+
+Both the neural network and the Monte Carlo tree are saved locally during the execution, so it is faster on the next execution.
 
 ## Versions
-In the file "dd_ttt.py" several improvement have been made in the algorithm. The player is now enclosed in a class and the algorithm has been modified to implement a Double-DQN. The loss reached is equivalent or lower than the one achieved by DQN. However, the best final policy achieved still belongs to DQN. This is the reason why both version are available at the moment.  In the future, we expect the Double-DQN to achieve better results.
+The main version is contained in the file main.py, but there are two more versions. These two versions did not achieve the same results unfortunately, but they are technically good approaches. Further developments may solve the current problems and make them achieve better performances.
 
-The latest version is in the main.py, which uses a simple monte carlo tree search to explore the possibilities.
+The file "ttt.py" implements a DQN, similar to the one described by the Lecture n.6 in David Silver course on Reinforcement Learning (you can find it on YouTube). In the file "dd_ttt.py" several improvement have been made in the algorithm. The player is now enclosed in a class and the algorithm has been modified to implement a Double-DQN. The loss reached is equivalent or lower than the one achieved by DQN. However, the best final policy achieved still belongs to DQN. This is the reason why both version are available at the moment.  In the future, we expect the Double-DQN to achieve better results.
 
 ## Run
-To run the Monte Carlo Tree Search algorithm, type in your terminal
+Download and extract the repository to your local machine. After the installation, execute the following.
+To play the program without training, type in your terminal
+
+    python main.py --play
+    
+To train the algorithm, just type
 
     python main.py
 To run the DQN algorithm, type in your terminal
@@ -42,7 +43,10 @@ To run the DDQN algorithm, type in your terminal
 The game will ask you to play a match immediately after the training has finished and the data has been saved.
 
 ## Results
-The best result achieved for now was human-like performance after 100K episodes, in the Monte Carlo tree version.
+The best result achieved for now was human-like performance after 100K episodes, in the Monte Carlo tree version. The result is achieved independently by the use of the neural network, but the purpose of the neural network will be evident in more complex games.
+
+## External resources
+https://web.stanford.edu/~surag/posts/alphazero.html
 
 ## Contact
-Please write at lmambretti@ucdavis.edu if you need more information.
+Please write at lmambretti@ucdavis.edu if you need more information or if you are interested in developing more. (cause I am!)
