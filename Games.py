@@ -1,15 +1,27 @@
 import numpy as np
 
-class TicTacToe:
+class Game:
 
-    num_rows = 3
-    num_cols = 3
-    action_space = 9
-    obs_space = 27
+    def __init__(self,num_rows, num_cols, action_space, obs_space):
+        self.num_rows = num_rows
+        self.num_cols = num_cols
+        self.action_space = action_space
+        self.obs_space = obs_space
+    
+    def board2array(self):
+        new_board = np.zeros(self.obs_space)
+        for row in range(self.num_rows):
+            for col in range(self.num_cols):
+                val = self.board[row][col]
+                new_board[(3 * self.num_cols) * row + 3 * col + val] = 1
+        return(new_board)
+
+class TicTacToe(Game):
 
     def __init__(self):
         self.board = np.zeros((3,3),dtype="int")
         self.terminal = False
+        super().__init__(3,3,9,27)
 
     def restart(self):
         self.board = np.zeros((3,3),dtype="int")

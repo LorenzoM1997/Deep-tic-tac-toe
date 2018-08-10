@@ -2,31 +2,17 @@
 Self-learning Tic Tac Toe
 Made by Lorenzo Mambretti
 
-Last Update: 8/6/2018 10:55 AM (Lorenzo)
+Last Update: 8/10/2018 11:38 AM (Lorenzo)
 """
 import random
 import numpy as np
 import progressbar
 from File_storage import *
 from nn import NN
-from Games import TicTacToe
+from Games import *
 import const
-import math
 import tensorflow as tf
 import argparse
-
-def board2array(state):
-    new_board = np.zeros(27)
-    for row in range(3):
-        for col in range(3):
-            if(state[row][col] == 0):
-                new_board[9 * row + 3 * col] = 1
-            elif(state[row][col] == 1):
-                new_board[9 * row + 3 * col + 1] = 1
-            else:
-                new_board[9 * row + 3 * col + 2] = 1
-
-    return(new_board)
 
 class Node:
     global nnet
@@ -34,7 +20,7 @@ class Node:
         self.N = 0
         self.V = 0
         self.Child_nodes = []
-        self.board = board2array(game.board)
+        self.board = game.board2array()
         
     def update(self,r):
         self.V = self.V + r
@@ -76,9 +62,9 @@ def random_move(game, current_node):
     check_new_node(game, current_node) #check if it is a new node
 
     #random action
-    a = random.randint(0,8)
+    a = random.randint(0,game.action_space - 1)
     while game.is_valid(a) == False:
-        a = (a + 1) % 9
+        a = (a + 1) % game.action_space
     return a
 
 def choose_move(game,current_node):
@@ -264,14 +250,14 @@ nnet = NN(0.0001, 64)
 saver = tf.train.Saver()
 try:
     saver.restore(nnet.sess, "/tmp/model.ckpt")
-    print("Open file /tmp/model.ckpt")
+    nnet.training_mode = True
 except:
     print("/tmp/model.ckpt not found. Training new session (nnet.sess)")
 
 parser = argparse.ArgumentParser(description='Train or play.')
 parser.add_argument('--play', dest='accumulate', action='store_const',
                    const=play, default=train,
-                   help='sum the integers (default: find the max)')
+                   help='play a game (default: train)')
 
 args = parser.parse_args()
 print(args.accumulate())

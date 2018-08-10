@@ -1,3 +1,8 @@
+"""
+Neural network
+Made by Lorenzo Mambretti
+"""
+
 import tensorflow as tf
 from tensorflow import keras
 print("tensorflow: ",tf.__version__)
@@ -70,8 +75,11 @@ class NN:
         self.sess = tf.InteractiveSession()
         self.train_writer = tf.summary.FileWriter(const.cwd, self.sess.graph)
         tf.global_variables_initializer().run()
+        self.training_mode = False
 
     def train(self, mct, iterations, training_steps):
+
+        self.training_mode = True
 
         # create batches
         input_batch = np.zeros((self.batch_size, 27))
@@ -115,5 +123,8 @@ class NN:
         v           a 9d float array with the q values of all the actions
         """
 
-        v = self.sess.run(self.y_, feed_dict={ self.x: [input_data]})
+        if self.training_mode == True:
+            v = self.sess.run(self.y_, feed_dict={ self.x: [input_data]})
+        else:
+            v = np.zeros(9,dtype=int)
         return v
