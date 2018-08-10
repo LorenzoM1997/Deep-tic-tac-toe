@@ -11,6 +11,7 @@ from File_storage import *
 from nn import NN
 from Games import *
 import const
+import math
 import tensorflow as tf
 import argparse
 
