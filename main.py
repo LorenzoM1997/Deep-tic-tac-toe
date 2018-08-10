@@ -10,8 +10,12 @@ import progressbar
 from File_storage import *
 from nn import NN
 from Games import TicTacToe
+import const
+import math
+import tensorflow as tf
+import argparse
 
-def convert_board_representation(state):
+def board2array(state):
     new_board = np.zeros(27)
     for row in range(3):
         for col in range(3):
@@ -24,22 +28,30 @@ def convert_board_representation(state):
 
     return(new_board)
 
-class Node:    
+class Node:
+    global nnet
     def __init__(self, game):
         self.N = 0
         self.V = 0
         self.Child_nodes = []
-        self.board = convert_board_representation(game.board)
+        self.board = board2array(game.board)
         
     def update(self,r):
         self.V = self.V + r
         self.N = self.N + 1
 
     def Q(self):
+        c_puct = 0.2    #hyperparameter
+        P = np.max(nnet.run(self.board))
+        
         if self.N == 0:
-            return 0.05
+            return c_puct * P * math.sqrt(self.N)/(1 + self.N)
         else:
-            return self.V/self.N
+            if self.Child_nodes == []:
+                Q = self.V
+            else:
+                Q = ((self.V * self.N) + P)/(self.N + 1)
+            return Q / self.N
 
 def check_new_node(game, current_node):
     """
@@ -103,10 +115,9 @@ def choose_move(game,current_node):
                 #print("None")
         return best_a
 
-def simulation(episodes):
+def simulation(episodes, TRAINING = False):
     global mct
     global game
-    epsilon = 0.1
     node_list = [[]]
 
     # progressbar
@@ -134,7 +145,7 @@ def simulation(episodes):
                 r = game.step(a)
             else:
                 #if player 2 epsilon-greedy
-                if random.random() < epsilon:
+                if random.random() < const.EPSILON:
                     a = random_move(game, current_node)
                 else:
                     a = choose_move(game, current_node)
@@ -153,6 +164,10 @@ def simulation(episodes):
                 mct[node[0]].update(-r)
             else:
                 mct[node[0]].update(r)
+
+        # train neural network
+        nnet.train(mct, 100, 2)
+        
     bar.finish()
         
 def play():
@@ -202,6 +217,40 @@ def play():
             else:
                 mct[node[0]].update(r)
 
+
+def train():
+    global nnet
+    global mct
+    
+    if const.SANITY_CHECK == True:
+        if len(mct) > 1000:
+            # sanity check
+            print("Single batch overfit.")
+            nnet.train(mct, 1, 10000)
+    # SIMULATION: playing and updating Monte Carlo Tree
+    print("Simulating episodes")
+    if len(mct) < 30000:
+        # mct is small, make a lot of simulations
+        print("Simulation without neural network")
+        simulation(95000)
+        # TRAINING: neural network is trained while keeping playing
+        print("Neural network training")
+        simulation(5000, TRAINING = True)
+    else:
+        # TRAINING: neural network is trained on the Monte Carlo Tree
+        print("Neural network training. This will take a while")
+        for _ in range(10):
+            nnet.train(mct,10000,2)
+    print("Simulation terminated.")
+    # SAVE FILE
+    try:
+        saver.save(nnet.sess, "/tmp/model.ckpt")
+        print("/tmp/model.ckpt saved correctly.")
+    except:
+        print("ERROR: an error has occured while saving the weights. The session will not be available when closing the program")
+
+    save_mct(mct)
+
 # create game
 game = TicTacToe()
 
@@ -210,30 +259,19 @@ mct = load_mct()
 if mct == []:
      mct.append(Node(game))
 
-# SIMULATION: playing and updating Monte Carlo Tree
-print("Simulating episodes")
-if len(mct) > 30000:
-    # the mct has already a good size, train it just a little bit more
-    simulation(5000)
-else:
-    # mct is small, make a lot of simulations
-    simulation(100000)
-print("Simulation terminated.")
+# create neural network
+nnet = NN(0.0001, 64)
+saver = tf.train.Saver()
+try:
+    saver.restore(nnet.sess, "/tmp/model.ckpt")
+    print("Open file /tmp/model.ckpt")
+except:
+    print("/tmp/model.ckpt not found. Training new session (nnet.sess)")
 
-# SAVE FILE
-save_mct(mct)
+parser = argparse.ArgumentParser(description='Train or play.')
+parser.add_argument('--play', dest='accumulate', action='store_const',
+                   const=play, default=train,
+                   help='sum the integers (default: find the max)')
 
-# TRAINING: neural network is trained on the Monte Carlo Tree
-nn = NN(0.001, 64)
-
-#sanity check
-nn.train(mct, 1, 10000)
-
-# actual training
-print("Starting Training Neural Network")
-nn.train(mct, 100000, 2)
-print("Training terminated.")
-
-# play: Human vs Machine
-print("Play new game.")
-play()
+args = parser.parse_args()
+print(args.accumulate())

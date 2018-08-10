@@ -2,6 +2,11 @@ import numpy as np
 
 class TicTacToe:
 
+    num_rows = 3
+    num_cols = 3
+    action_space = 9
+    obs_space = 27
+
     def __init__(self):
         self.board = np.zeros((3,3),dtype="int")
         self.terminal = False

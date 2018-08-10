@@ -1,10 +1,9 @@
 import tensorflow as tf
+from tensorflow import keras
+print("tensorflow: ",tf.__version__)
 import numpy as np
 import random
-import os
-
-cwd = os.getcwd()
-cwd = cwd + '\\tensorflow_logs'
+import const
 
 class NN:
     """        
@@ -19,28 +18,36 @@ class NN:
     tanh
     """
     with tf.name_scope('Hidden_layer_1') as scope:
-        W1 = tf.Variable(tf.random_uniform([27,21], minval = -1, maxval = 1), name='W1')
-        b1 = tf.Variable(tf.random_uniform([21], minval = -1, maxval = 1), name='b1')
+        W1 = tf.Variable(tf.random_uniform([27,27], minval = -1, maxval = 1), name='W1')
+        b1 = tf.Variable(tf.random_uniform([27], minval = -1, maxval = 1), name='b1')
         h1 = tf.tanh(tf.matmul(x, W1) + b1)
     """
-    HIDDEN LAYER 1
+    HIDDEN LAYER 2
     15 neurons
     tanh
     """
     with tf.name_scope('Hidden_layer_2') as scope:
-        W2 = tf.Variable(tf.random_uniform([21,15], minval = -1, maxval = 1), name='W2')
-        b2 = tf.Variable(tf.random_uniform([15], minval = -1, maxval = 1), name='b2')
+        W2 = tf.Variable(tf.random_uniform([27,21], minval = -1, maxval = 1), name='W2')
+        b2 = tf.Variable(tf.random_uniform([21], minval = -1, maxval = 1), name='b2')
         h2 = tf.tanh(tf.matmul(h1, W2) + b2)
-    
+    """
+    HIDDEN LAYER 3
+    15 neurons
+    tanh
+    """
+    with tf.name_scope('Hidden_layer_3') as scope:
+        W3 = tf.Variable(tf.random_uniform([21,15], minval = -1, maxval = 1), name='W3')
+        b3 = tf.Variable(tf.random_uniform([15], minval = -1, maxval = 1), name='b3')
+        h3 = tf.tanh(tf.matmul(h2, W3) + b3)
     """
     OUTPUT LAYER
     9 neurons
     tanh
     """
     with tf.name_scope('Output_layer') as scope:
-        W3 = tf.Variable(tf.random_uniform([15,9], minval = -1, maxval = 1))
-        b3 = tf.Variable(tf.random_uniform([9], minval = -1, maxval = 1))
-        y_ = tf.tanh(tf.matmul(h2, W3) + b3)
+        W4 = tf.Variable(tf.random_uniform([15,9], minval = -1, maxval = 1))
+        b4 = tf.Variable(tf.random_uniform([9], minval = -1, maxval = 1))
+        y_ = tf.tanh(tf.matmul(h3, W4) + b4)
 
     y = tf.placeholder(tf.float32,[None, 9], name="y")
 
@@ -50,9 +57,8 @@ class NN:
     or try the fastai library optimizers
     """
     loss = tf.losses.mean_squared_error(y_,y)
-    train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
-    def __init__(self, lr, batch_size = 64):
+    def __init__(self, lr = 0.00025, batch_size = 64):
         self.batch_size = batch_size
         self.train_step = tf.train.AdamOptimizer(lr).minimize(self.loss)
         
@@ -62,12 +68,10 @@ class NN:
 
         # start training session
         self.sess = tf.InteractiveSession()
-        self.train_writer = tf.summary.FileWriter(cwd, self.sess.graph)
+        self.train_writer = tf.summary.FileWriter(const.cwd, self.sess.graph)
         tf.global_variables_initializer().run()
 
     def train(self, mct, iterations, training_steps):
-        
-        global cwd
 
         # create batches
         input_batch = np.zeros((self.batch_size, 27))
@@ -110,6 +114,6 @@ class NN:
         RETURN
         v           a 9d float array with the q values of all the actions
         """
-        
-        v = self.sess.run(y_, feed_dict={ x: input_data})
+
+        v = self.sess.run(self.y_, feed_dict={ self.x: [input_data]})
         return v
