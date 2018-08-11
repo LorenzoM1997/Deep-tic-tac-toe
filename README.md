@@ -26,9 +26,9 @@ The file "ttt.py" implements a DQN, similar to the one described by the Lecture 
 
 ## Run
 Download and extract the repository to your local machine. After the installation, execute the following.
-To play the program without training, type in your terminal
+To train the program instead of playing, type in your terminal
 
-    python main.py --play
+    python main.py --train
     
 To train the algorithm, just type
 
