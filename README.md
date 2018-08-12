@@ -40,7 +40,9 @@ To run the DDQN algorithm, type in your terminal
 
     python3 dd_ttt.py
 
-The game will ask you to play a match immediately after the training has finished and the data has been saved.
+In the last two versions, the game will ask you to play a match immediately after the training has finished and the data has been saved. During training it is possible to visualize the tensorboard. Run the following in your terminal
+
+    tensorboard --logdir tensorflow_logs
 
 ## Results
 The best result achieved for now was human-like performance after 100K episodes, in the Monte Carlo tree version. The result is achieved independently by the use of the neural network, but the purpose of the neural network will be evident in more complex games.
