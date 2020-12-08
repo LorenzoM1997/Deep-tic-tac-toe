@@ -4,127 +4,84 @@ Made by Lorenzo Mambretti
 """
 
 import tensorflow as tf
-from tensorflow import keras
-print("tensorflow: ",tf.__version__)
+from tensorflow.keras.layers import Dense, Flatten, Conv2D
+from tensorflow.keras import Model
+print("tensorflow: ",tf.version.VERSION)
 import numpy as np
 import random
 import const
 
-class NN:
-    """        
-    INPUT LAYER
-    27 neurons
-    """
-    x = tf.placeholder(tf.float32,[None, 27], name='x')
-    
-    """
-    HIDDEN LAYER 1
-    21 neurons
-    tanh
-    """
-    with tf.name_scope('Hidden_layer_1') as scope:
-        W1 = tf.Variable(tf.random_uniform([27,27], minval = -1, maxval = 1), name='W1')
-        b1 = tf.Variable(tf.random_uniform([27], minval = -1, maxval = 1), name='b1')
-        h1 = tf.tanh(tf.matmul(x, W1) + b1)
-    """
-    HIDDEN LAYER 2
-    15 neurons
-    tanh
-    """
-    with tf.name_scope('Hidden_layer_2') as scope:
-        W2 = tf.Variable(tf.random_uniform([27,21], minval = -1, maxval = 1), name='W2')
-        b2 = tf.Variable(tf.random_uniform([21], minval = -1, maxval = 1), name='b2')
-        h2 = tf.tanh(tf.matmul(h1, W2) + b2)
-    """
-    HIDDEN LAYER 3
-    15 neurons
-    tanh
-    """
-    with tf.name_scope('Hidden_layer_3') as scope:
-        W3 = tf.Variable(tf.random_uniform([21,15], minval = -1, maxval = 1), name='W3')
-        b3 = tf.Variable(tf.random_uniform([15], minval = -1, maxval = 1), name='b3')
-        h3 = tf.tanh(tf.matmul(h2, W3) + b3)
-    """
-    OUTPUT LAYER
-    9 neurons
-    tanh
-    """
-    with tf.name_scope('Output_layer') as scope:
-        W4 = tf.Variable(tf.random_uniform([15,9], minval = -1, maxval = 1))
-        b4 = tf.Variable(tf.random_uniform([9], minval = -1, maxval = 1))
-        y_ = tf.tanh(tf.matmul(h3, W4) + b4)
-
-    y = tf.placeholder(tf.float32,[None, 9], name="y")
-
-    """
-    loss = mean squared error
-    optimizer: adam
-    or try the fastai library optimizers
-    """
-    loss = tf.losses.mean_squared_error(y_,y)
+class NN(Model):
 
     def __init__(self, lr = 0.00025, batch_size = 64):
+        super(NN, self).__init__()
+        self.d1 = Dense(21, activation='relu')
+        self.d2 = Dense(15, activation='relu')
+        self.d3 = Dense(9, activation='tanh')
+
         self.batch_size = batch_size
-        self.train_step = tf.train.AdamOptimizer(lr).minimize(self.loss)
-        
-        # summaries
-        tf.summary.scalar('loss', self.loss)
-        self.summaries = tf.summary.merge_all()
 
-        # start training session
-        self.sess = tf.InteractiveSession()
-        self.train_writer = tf.summary.FileWriter(const.cwd, self.sess.graph)
-        tf.global_variables_initializer().run()
-        self.training_mode = False
+    def call(self, x):
+        x = self.d1(x)
+        x = self.d2(x)
+        return self.d3(x)
 
-    def train(self, mct, iterations, training_steps):
+"""
+define here the training process and all necessary accessories"""
+loss_object = tf.keras.losses.MeanSquaredError()
+optimizer = tf.keras.optimizers.Adam()
 
-        self.training_mode = True
+train_loss = tf.keras.metrics.Mean(name='train_loss')
+test_loss = tf.keras.metrics.Mean(name='test_loss')
 
-        # create batches
-        input_batch = np.zeros((self.batch_size, 27))
-        output_batch = np.zeros((self.batch_size, 9))
-        action_matrix = np.zeros(9, dtype="int")
-        
-        for i in range(iterations):
-            seed = random.randint(0, len(mct) - self.batch_size - 1)
-            for b in range(self.batch_size):
+@tf.function
+def train_step(model, data, labels):
+    with tf.GradientTape() as tape:
+        # training=True is only needed if there are layers with different
+        # behavior during training versus inference (e.g. Dropout).
+        predictions = model(data, training=True)
+        loss = loss_object(labels, predictions)
+    gradients = tape.gradient(loss, model.trainable_variables)
+    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-                if not mct[seed + b].Child_nodes:
-                    # this node is not useful for training if it's not visited
-                    # don't count it and advance by 1 in the list
-                    b = b - 1
-                    # generate new point from where to look in the list
-                    seed = random.randint(0, len(mct) - self.batch_size - 1)
-                    
-                else:     
-                    input_batch[b] = mct[seed + b].board
-                    for a in range(9):
-                        if mct[seed + b].Child_nodes[a] != None:
-                            action_matrix[a] = mct[mct[seed + b].Child_nodes[a]].Q()
-                        else:
-                            action_matrix[a] = -1
-                    output_batch[b] = action_matrix
+    train_loss(loss)
 
-            for j in range(training_steps):
-                summary, _ = self.sess.run([self.summaries, self.train_step],
-                                      feed_dict={ self.x: input_batch,
-                                                  self.y: output_batch})
-                self.train_writer.add_summary(summary, i)
-        print("loss: ",self.sess.run(self.loss, feed_dict={self.x: input_batch,
-                                                           self.y: output_batch}))
+@tf.function
+def test_step(model, data, labels):
+    predictions = model(images, training=False)
+    t_loss = loss_object(labels, predictions)
 
-    def run(self,input_data):
-        """
-        PARAMS
-        input_data  a 27d representation of a single board
+    test_loss(t_loss)
 
-        RETURN
-        v           a 9d float array with the q values of all the actions
-        """
+def train_model(mct, model, epochs, training_steps):
 
-        if self.training_mode == True:
-            v = self.sess.run(self.y_, feed_dict={ self.x: [input_data]})
-        else:
-            v = np.zeros(9,dtype=int)
-        return v
+    # create batches
+    input_batch = np.zeros((model.batch_size, 27))
+    output_batch = np.zeros((model.batch_size, 9))
+    action_matrix = np.zeros(9, dtype="int")
+
+    for epoch in range(epochs):
+
+        train_loss.reset_states()
+        test_loss.reset_states()
+
+        seed = random.randint(0, len(mct) - model.batch_size - 1)
+        for b in range(model.batch_size):
+
+            if not mct[seed + b].Child_nodes:
+                # this node is not useful for training if it's not visited
+                # don't count it and advance by 1 in the list
+                b = b - 1
+                # generate new point from where to look in the list
+                seed = random.randint(0, len(mct) - model.batch_size - 1)
+
+            else:
+                input_batch[b] = mct[seed + b].board
+                for a in range(9):
+                    if mct[seed + b].Child_nodes[a] != None:
+                        action_matrix[a] = mct[mct[seed + b].Child_nodes[a]].Q()
+                    else:
+                        action_matrix[a] = -1
+                output_batch[b] = action_matrix
+
+        train_step(model, input_batch, output_batch)

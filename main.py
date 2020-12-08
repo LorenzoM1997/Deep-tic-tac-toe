@@ -5,10 +5,11 @@ Made by Lorenzo Mambretti
 Last Update: 8/10/2018 11:38 AM (Lorenzo)
 """
 import random
+import os
 import numpy as np
 import progressbar
 from File_storage import *
-from nn import NN
+from nn import NN, train_model
 from Games import *
 import const
 import math
@@ -22,15 +23,15 @@ class Node:
         self.V = 0
         self.Child_nodes = []
         self.board = const.game.board2array()
-        
+
     def update(self,r):
         self.V = self.V + r
         self.N = self.N + 1
 
     def Q(self):
         c_puct = 0.2    #hyperparameter
-        P = np.max(nnet.run(self.board))
-        
+        P = np.max(nnet.call(self.board.reshape(1,27)))
+
         if self.N == 0:
             return c_puct * P * math.sqrt(self.N)/(1 + self.N)
         else:
@@ -55,7 +56,7 @@ def check_new_node(current_node):
             else:
                 current_node.Child_nodes.append(None)
 
-    
+
 
 def random_move(current_node):
 
@@ -68,7 +69,7 @@ def random_move(current_node):
     return a
 
 def choose_move(current_node):
-    
+
     # if is the first time you visit this node
     if current_node.N == 0:
         # generate child nodes
@@ -77,7 +78,7 @@ def choose_move(current_node):
                 current_node.Child_nodes.append(len(const.mct))
                 const.mct.append(Node())
             else:
-                current_node.Child_nodes.append(None) 
+                current_node.Child_nodes.append(None)
 
         #random action
         a = random.randint(0,8)
@@ -106,12 +107,12 @@ def simulation(episodes, TRAINING = False):
     bar = progressbar.ProgressBar(maxval=episodes, \
     widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
     bar.start()
-    
+
     for e in range(episodes):
 
         if (e + 1) % (episodes/100) == 0:
             bar.update(e)
-        
+
         player = e % 2          # choose player
         const.game.restart()             # empty board
         node_list.clear()
@@ -148,8 +149,8 @@ def simulation(episodes, TRAINING = False):
                 const.mct[node[0]].update(r)
 
         # train neural network
-        nnet.train(const.mct, 100, 2)
-        
+        train(const.mct, nnet, 100, 2)
+
     bar.finish()
 
 def play():
@@ -157,12 +158,12 @@ def play():
 
 def train():
     global nnet
-    
+
     if const.SANITY_CHECK == True:
         if len(const.mct) > 1000:
             # sanity check
             print("Single batch overfit.")
-            nnet.train(const.mct, 1, 10000)
+            train_model(const.mct, nnet, 1, 10000)
     # SIMULATION: playing and updating Monte Carlo Tree
     print("Simulating episodes")
     if len(const.mct) < 30000:
@@ -176,11 +177,11 @@ def train():
         # TRAINING: neural network is trained on the Monte Carlo Tree
         print("Neural network training. This will take a while")
         for _ in range(10):
-            nnet.train(const.mct,10000,2)
+            train_model(const.mct, nnet, 10000,2)
     print("Simulation terminated.")
     # SAVE FILE
     try:
-        saver.save(nnet.sess, "/tmp/model.ckpt")
+        model.save_weights(const.WEIGHTS_FILENAME)
         print("/tmp/model.ckpt saved correctly.")
     except:
         print("ERROR: an error has occured while saving the weights. The session will not be available when closing the program")
@@ -193,16 +194,14 @@ if __name__ == "__main__":
 
     # create neural network
     nnet = NN(0.0001, 64)
-    saver = tf.train.Saver()
     try:
-        saver.restore(nnet.sess, "/tmp/model.ckpt")
-        nnet.training_mode = True
+        nnet.load_weights(const.WEIGHTS_FILENAME)
     except:
-        print("/tmp/model.ckpt not found. Training new session (nnet.sess)")
+        print(const.WEIGHTS_FILENAME, " not found")
 
     parser = argparse.ArgumentParser(description='Train or play.')
     parser.add_argument('--play', dest='accumulate', action='store_const',
-                       const=train, default=play,
+                       const=play, default=train,
                        help='play a const.game (default: train)')
 
     args = parser.parse_args()

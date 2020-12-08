@@ -4,6 +4,7 @@ from File_storage import *
 
 EPSILON = 0.1
 SANITY_CHECK = True
+WEIGHTS_FILENAME = "/tmp/my_checkpoint"
 cwd = os.getcwd()
 cwd = cwd + '\\tensorflow_logs'
 
@@ -17,4 +18,3 @@ def init():
     mct = load_mct()
     if mct == []:
         mct.append(Node(game))
-    

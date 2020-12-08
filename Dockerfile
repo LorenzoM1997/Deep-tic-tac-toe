@@ -13,3 +13,5 @@ RUN pip3 install \
 		numpy \
 		tensorflow \
 		progressbar \
+		pyyaml \
+		h5py
