@@ -18,89 +18,65 @@ import argparse
 
 class Node:
     global nnet
-    def __init__(self):
+    def __init__(self, board):
         self.N = 0
         self.V = 0
-        self.Child_nodes = []
-        self.board = const.game.board2array()
+        self.Child_nodes = {}
+        self.board = board
 
     def update(self,r):
         self.V = self.V + r
-        self.N = self.N + 1
+        self.N += 1
 
     def Q(self):
         c_puct = 0.2    #hyperparameter
-        P = np.max(nnet.call(self.board.reshape(1,27)))
+        P = np.max(nnet.call(self.board))
 
         if self.N == 0:
-            return c_puct * P * math.sqrt(self.N)/(1 + self.N)
+            return P
         else:
-            if self.Child_nodes == []:
+            if bool(self.Child_nodes) == False:
                 Q = self.V
             else:
                 Q = ((self.V * self.N) + P)/(self.N + 1)
             return Q / self.N
 
-def check_new_node(current_node):
+def check_new_node(game, current_node, a):
     """
     this function check if it is the first time the player visited the current node
     if it is the first time, create all the child nodes
     and append them in the Monte Carlo Tree (const.mct)
     """
-    if current_node.N == 0:
+    if a not in current_node.Child_nodes.keys():
         # generate child nodes
-        for a in range(9):
-            if const.game.is_valid(a) == True:
-                current_node.Child_nodes.append(len(const.mct))
-                const.mct.append(Node())
-            else:
-                current_node.Child_nodes.append(None)
+        current_node.Child_nodes[a] = len(const.mct)
+        const.mct.append(Node(game.board2array()))
 
 
-
-def random_move(current_node):
-
-    check_new_node(current_node) #check if it is a new node
-
-    #random action
-    a = random.randint(0,const.game.action_space - 1)
-    while const.game.is_valid(a) == False:
-        a = (a + 1) % const.game.action_space
+def random_move(game, current_node):
+    #check if it is a new node
+    a = random.choice(game.get_valid_moves())
     return a
 
-def choose_move(current_node):
 
-    # if is the first time you visit this node
-    if current_node.N == 0:
-        # generate child nodes
-        for a in range(9):
-            if const.game.is_valid(a) == True:
-                current_node.Child_nodes.append(len(const.mct))
-                const.mct.append(Node())
-            else:
-                current_node.Child_nodes.append(None)
+def choose_move(game, current_node):
 
-        #random action
-        a = random.randint(0,8)
-        while const.game.is_valid(a) == False:
-            a = (a + 1) % 9
-        return a
+    pred = nnet.call(current_node.board).numpy()[0]
 
-    # if you already visited this node
-    else:
-        best_a = 0
-        best_q = -2
-        for c in current_node.Child_nodes:
-            if c != None:
-                if const.mct[c].Q() > best_q:
-                    best_q = const.mct[c].Q()
-                    best_a = current_node.Child_nodes.index(c)
-                #print(const.mct[c].Q())
-            #else:
-                #print("None")
-        return best_a
+    # else find the best of the nodes
+    for a in range(game.action_space):
+        if a in current_node.Child_nodes.keys():
+            c = current_node.Child_nodes[a]
+            pred[a] = const.mct[c].Q()
+            continue
 
-def simulation(episodes, TRAINING = False):
+        if game.is_valid(a) == False:
+            pred[a] = -2
+
+    return np.argmax(pred)
+
+def simulation(game, episodes):
+    print("simulation() starterd")
     node_list = [[]]
 
     # progressbar
@@ -113,32 +89,31 @@ def simulation(episodes, TRAINING = False):
         if (e + 1) % (episodes/100) == 0:
             bar.update(e)
 
-        player = e % 2          # choose player
-        const.game.restart()             # empty board
+        game.restart(player = e % 2)             # empty board
         node_list.clear()
         current_node = const.mct[0]   # root of the tree is current node
-        node_list.append([0,player])
+        node_list.append([0,game.player])
 
         # while state not terminal
-        while const.game.terminal == False:
-            #choose move
-            if player == 0:
+        while game.terminal == False:
+            # choose move
+            if game.player == 0:
                 #if player 1 not random
-                a = choose_move(current_node)
-                r = const.game.step(a)
+                a = choose_move(game, current_node)
+                r = game.step(a)
             else:
                 #if player 2 epsilon-greedy
                 if random.random() < const.EPSILON:
-                    a = random_move(current_node)
+                    a = random_move(game, current_node)
                 else:
-                    a = choose_move(current_node)
-                const.game.invert_board()
-                r = - const.game.step(a)
-                const.game.invert_board()
+                    a = choose_move(game, current_node)
+                game.invert_board()
+                r = - game.step(a)
+                game.invert_board()
 
+            check_new_node(game, current_node, a)
             current_node = const.mct[current_node.Child_nodes[a]]
-            player = (player + 1) % 2
-            node_list.append([const.mct.index(current_node),player])
+            node_list.append([const.mct.index(current_node),game.player])
             #save state in node list
 
         #update all nodes
@@ -148,13 +123,35 @@ def simulation(episodes, TRAINING = False):
             else:
                 const.mct[node[0]].update(r)
 
-        # train neural network
-        train(const.mct, nnet, 100, 2)
-
     bar.finish()
 
 def play():
     import gui
+
+def extract_data(game):
+
+    n_nodes = len(const.mct)
+    data = np.empty((n_nodes, game.obs_space))
+    labels = np.empty((n_nodes, game.action_space))
+
+    i = 0
+    for node in const.mct:
+        data[i] = node.board
+
+        pred = nnet.call(node.board).numpy()[0]
+        for a in range(9):
+            if a in node.Child_nodes.keys():
+                c = node.Child_nodes[a]
+                pred[a] = const.mct[c].Q()
+
+            if game.is_valid(a) == False:
+                pred[a] = -1
+
+        labels[i] = pred
+
+        i += 1
+
+    return data, labels
 
 def train():
     global nnet
@@ -163,29 +160,30 @@ def train():
         if len(const.mct) > 1000:
             # sanity check
             print("Single batch overfit.")
-            train_model(const.mct, nnet, 1, 10000)
-    # SIMULATION: playing and updating Monte Carlo Tree
-    print("Simulating episodes")
-    if len(const.mct) < 30000:
-        # const.mct is small, make a lot of simulations
-        print("Simulation without neural network")
-        simulation(95000)
-        # TRAINING: neural network is trained while keeping playing
-        print("Neural network training")
-        simulation(5000, TRAINING = True)
-    else:
-        # TRAINING: neural network is trained on the Monte Carlo Tree
-        print("Neural network training. This will take a while")
-        for _ in range(10):
-            train_model(const.mct, nnet, 10000,2)
-    print("Simulation terminated.")
-    # SAVE FILE
-    try:
-        model.save_weights(const.WEIGHTS_FILENAME)
-        print("/tmp/model.ckpt saved correctly.")
-    except:
-        print("ERROR: an error has occured while saving the weights. The session will not be available when closing the program")
+            train_model(const.mct, nnet, 1, 1)
 
+    # SIMULATION: playing and updating Monte Carlo Tree
+
+    if len(const.mct) == 0:
+        # start with a simulation
+        const.mct.append(Node(const.game.board2array()))
+        simulation(const.game, const.N_ROLLOUTS)
+
+    for _ in range(const.N_ITERATION_MAIN):
+
+        data, labels = extract_data(const.game)
+
+        # train the network
+        train_model(data, labels, nnet, 1)
+        # clear the monte carlo tree
+
+        simulation(const.game, const.N_ROLLOUTS)
+        # save the Monte Carlo Tree
+
+    # save model
+    nnet.save_weights(const.WEIGHTS_FILENAME)
+
+    # save latest monte carlo tree
     save_mct(const.mct)
 
 
@@ -193,7 +191,7 @@ if __name__ == "__main__":
     const.init()
 
     # create neural network
-    nnet = NN(0.0001, 64)
+    nnet = NN()
     try:
         nnet.load_weights(const.WEIGHTS_FILENAME)
     except:

@@ -13,13 +13,11 @@ import const
 
 class NN(Model):
 
-    def __init__(self, lr = 0.00025, batch_size = 64):
+    def __init__(self):
         super(NN, self).__init__()
         self.d1 = Dense(21, activation='relu')
         self.d2 = Dense(15, activation='relu')
         self.d3 = Dense(9, activation='tanh')
-
-        self.batch_size = batch_size
 
     def call(self, x):
         x = self.d1(x)
@@ -53,35 +51,22 @@ def test_step(model, data, labels):
 
     test_loss(t_loss)
 
-def train_model(mct, model, epochs, training_steps):
+def train_model(data, labels, model, epochs, batch_size = 64):
+
+    print("train_model() started")
 
     # create batches
-    input_batch = np.zeros((model.batch_size, 27))
-    output_batch = np.zeros((model.batch_size, 9))
-    action_matrix = np.zeros(9, dtype="int")
+    input_batch = np.empty((batch_size, 27))
+    output_batch = np.empty((batch_size, 9))
+    action_matrix = np.empty(9, dtype="int")
+
+    train_dataset = tf.data.Dataset.from_tensor_slices((data, labels))
+    train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
 
     for epoch in range(epochs):
 
         train_loss.reset_states()
         test_loss.reset_states()
 
-        seed = random.randint(0, len(mct) - model.batch_size - 1)
-        for b in range(model.batch_size):
-
-            if not mct[seed + b].Child_nodes:
-                # this node is not useful for training if it's not visited
-                # don't count it and advance by 1 in the list
-                b = b - 1
-                # generate new point from where to look in the list
-                seed = random.randint(0, len(mct) - model.batch_size - 1)
-
-            else:
-                input_batch[b] = mct[seed + b].board
-                for a in range(9):
-                    if mct[seed + b].Child_nodes[a] != None:
-                        action_matrix[a] = mct[mct[seed + b].Child_nodes[a]].Q()
-                    else:
-                        action_matrix[a] = -1
-                output_batch[b] = action_matrix
-
-        train_step(model, input_batch, output_batch)
+        for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
+            train_step(model, input_batch, output_batch)
