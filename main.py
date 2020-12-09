@@ -2,7 +2,7 @@
 Self-learning Tic Tac Toe
 Made by Lorenzo Mambretti
 
-Last Update: 8/10/2018 11:38 AM (Lorenzo)
+Last Update: Dec 8 2020
 """
 import random
 import os
@@ -75,8 +75,37 @@ def choose_move(game, current_node):
 
     return np.argmax(pred)
 
+def evaluation(game, episodes):
+    print("evaluation() started")
+
+    score = 0
+    for e in range(episodes):
+
+        game.restart(player = e % 2)
+        current_node = const.mct[0]
+
+        while game.terminal == False:
+            # agent to evaluate
+            if game.player == 0:
+                a = choose_move(game, current_node)
+                r = game.step(a)
+            else:
+                # random agent
+                a = random_move(game, current_node)
+                game.invert_board()
+                r = -game.step(a)
+                game.invert_board()
+
+            check_new_node(game, current_node, a)
+            current_node = const.mct[current_node.Child_nodes[a]]
+
+        score += r
+
+    return score / episodes
+
+
 def simulation(game, episodes):
-    print("simulation() starterd")
+    print("simulation() started")
     node_list = [[]]
 
     # progressbar
@@ -174,8 +203,16 @@ def train():
         data, labels = extract_data(const.game)
 
         # train the network
-        train_model(data, labels, nnet, 1)
+        train_model(data, labels, nnet, 2)
+
         # clear the monte carlo tree
+        if (const.CLEAR_TREE_ON_ITERATION):
+            const.game.restart()
+            const.mcd = [Node(const.game.board2array())]
+
+        if (const.EVALUATE_ON_ITERATION):
+            score = evaluation(const.game, 100)
+            print("score: ", score)
 
         simulation(const.game, const.N_ROLLOUTS)
         # save the Monte Carlo Tree

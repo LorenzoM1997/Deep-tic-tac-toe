@@ -70,3 +70,8 @@ def train_model(data, labels, model, epochs, batch_size = 64):
 
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
             train_step(model, input_batch, output_batch)
+
+        print(
+            f'Epoch {epoch + 1}, '
+            f'Loss: {train_loss.result()}, '
+          )
