@@ -1,21 +1,28 @@
-# Deep Tic Tac Toe
+# Tic Tac Toe Zero
 Here is implemented a simplified version of Alpha Zero, reinforcement learning developed by Google Deep Mind for chess. Here it is re-purposed to play tic tac toe. Being much simpler than chess, it needs less time to train and it uses more heavily the Monte Carlo Tree search, and the neural network plays a minor role.
 
 ## Install
-Needs numpy,tensorflow and progressbar to work properly. The code is currently using Tensorflow 1.9, but it is likely to work also with less recent versions. You can use the native pip install.
+### Ubuntu
+Needs numpy,tensorflow and progressbar to work properly. The code is currently using Tensorflow 2 and tested under Ubuntu 20.04. You can use the native pip install.
 
-    pip3 install --upgrade numpy
-    pip3 install --upgrade tensorflow
-    pip install progressbar
+    apt-get update && apt-get install -y python3 python3-pip
+    pip3 install numpy tensorflow progressbar pyyaml h5py
 
 You can follow the instruction in the official Tensorflow website if you want to install it through Anaconda. If you have a CUDA-compatible Nvidia GPU, I suggest to install the gpu version for better performances.
 
-    pip install --upgrade tensorflow-gpu
+    pip3 install --upgrade tensorflow-gpu
+    
+### Docker
+    
+For convinience, I also provide a Dockerfile to install all the prerequisites and a Makefile that allows to quickly build the image and open a bash in the container with a copy of the files mounted in the working volume.
+
+    make docker
+    make bash
 
 ## Structure and functionality
-The algorithm implements a Monte Carlo Tree to explore the board. After an initial exploration using the monte carlo tree search, the network start training a deep dense neural network. The monte carlo tree explores the games always until the end, the training is therefore online.
+The algorithm implements a Monte Carlo Tree to explore the board in conjunction with a neural network. The network starts initialized at random, so it will make poor guesses on which move to take, but the value at each expolored node is updated after a terminal stated is reached (win,tie,lost). Each game is played against itself, but at each step a random action may be taken with probability *EPSILON*. After *N_ROLLOUTS* games simulated the tree is parsed to extract data and the network is trained.
 
-The neural networks has 3 hidden layes, for a total of 99 neurons. It is trained using the Adam Optimizer provided by tensorflow with a learning rate of 0.00025, 200k iterations in total with batches randomly chosen from the nodes of the monte carlo tree.
+The neural networks has 3 hidden layes, for a total of 99 neurons, as uses the adam optimizer. The neural networks is a policy network, thus it tries to predict the correct action from a given board of the game. The data comes directly from the monte carlo tree search, but we filter all the nodes that have not been explored enough as they lead the neural network to instability. A difference from the Alpha Zero algorithm is that in the paper the neural network has two heads, one to predict the policy and one to predict the value of the state. In my implementation I am replacing the value network with the maximum value of a policy network.
 
 Both the neural network and the Monte Carlo tree are saved locally during the execution, so it is faster on the next execution.
 
@@ -28,11 +35,11 @@ The file "ttt.py" implements a DQN, similar to the one described by the Lecture 
 Download and extract the repository to your local machine. After the installation, execute the following.
 To train the program instead of playing, type in your terminal
 
-    python main.py --train
+    python3 main.py train
     
-To train the algorithm, just type
+To play against the algorithm, just type
 
-    python main.py
+    python3 main.py --play
 To run the DQN algorithm, type in your terminal
 
     python3 ttt.py
@@ -44,6 +51,8 @@ In the last two versions, the game will ask you to play a match immediately afte
 
     tensorboard --logdir tensorflow_logs
 
+**Disclaimer :** some of the code was written a few years ago and got deprecated. I reviewed and corrected the main part of code recently to fix that, but other parts of the code may still be broken. Run `main.py` if you want something that is sure to work.
+
 ## Results
 The best result achieved for now was human-like performance after 100K episodes, in the Monte Carlo tree version. The result is achieved independently by the use of the neural network, but the purpose of the neural network will be evident in more complex games.
 
@@ -51,4 +60,4 @@ The best result achieved for now was human-like performance after 100K episodes,
 https://web.stanford.edu/~surag/posts/alphazero.html
 
 ## Contact
-Please write at lmambretti@ucdavis.edu if you need more information or if you are interested in developing more. (cause I am!)
+Please write at lorenz.m97@gmail.com if you need more information or if you are interested in developing more. (cause I am!)
