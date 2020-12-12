@@ -10,7 +10,7 @@ import numpy as np
 import progressbar
 from File_storage import *
 from nn import NN, train_model
-from Games import *
+import Game
 import const
 import math
 import tensorflow as tf
@@ -218,7 +218,7 @@ def train():
         data, labels = extract_data(const.game, const.MIN_VISITS)
 
         # train the network
-        train_model(data, labels, nnet, 3)
+        train_model(data, labels, nnet, const.EPOCHS)
 
         # clear the monte carlo tree
         if (const.CLEAR_TREE_ON_ITERATION):
