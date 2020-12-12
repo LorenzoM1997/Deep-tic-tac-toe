@@ -78,7 +78,8 @@ def choose_move(game, current_node):
 def evaluation(game, episodes):
     print("evaluation() started")
 
-    score = 0
+    defeats = 0
+    victories = 0
     for e in range(episodes):
 
         game.restart(player = e % 2)
@@ -99,9 +100,12 @@ def evaluation(game, episodes):
             check_new_node(game, current_node, a)
             current_node = const.mct[current_node.Child_nodes[a]]
 
-        score += r
+        if r == 1:
+            victories += 1
+        elif r == -1:
+            defeats += 1
 
-    return score / episodes
+    return victories, defeats
 
 
 def simulation(game, episodes):
@@ -157,7 +161,8 @@ def simulation(game, episodes):
 def play():
     import gui
 
-def extract_data(game):
+def extract_data(game, min_visits = 10):
+    print("extract_data(): start")
 
     n_nodes = len(const.mct)
     data = np.empty((n_nodes, game.obs_space))
@@ -165,9 +170,15 @@ def extract_data(game):
 
     i = 0
     for node in const.mct:
+
+        # don't count if does't reach the min required
+        if node.N < min_visits:
+            continue
+
         data[i] = node.board
 
         pred = nnet.call(node.board).numpy()[0]
+
         for a in range(9):
             if a in node.Child_nodes.keys():
                 c = node.Child_nodes[a]
@@ -179,6 +190,10 @@ def extract_data(game):
         labels[i] = pred
 
         i += 1
+
+    data = data[:i,:]
+    labels = labels[:i, :]
+    print("extract_data(): end")
 
     return data, labels
 
@@ -200,10 +215,10 @@ def train():
 
     for _ in range(const.N_ITERATION_MAIN):
 
-        data, labels = extract_data(const.game)
+        data, labels = extract_data(const.game, const.MIN_VISITS)
 
         # train the network
-        train_model(data, labels, nnet, 2)
+        train_model(data, labels, nnet, 3)
 
         # clear the monte carlo tree
         if (const.CLEAR_TREE_ON_ITERATION):
@@ -211,8 +226,9 @@ def train():
             const.mcd = [Node(const.game.board2array())]
 
         if (const.EVALUATE_ON_ITERATION):
-            score = evaluation(const.game, 100)
-            print("score: ", score)
+            w, l = evaluation(const.game, 100)
+            t = 100 - (w + l)
+            print("won: ", w, " ties: ", t, " lost: ",l)
 
         simulation(const.game, const.N_ROLLOUTS)
         # save the Monte Carlo Tree

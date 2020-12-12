@@ -55,11 +55,7 @@ def train_model(data, labels, model, epochs, batch_size = 64):
 
     print("train_model() started")
 
-    # create batches
-    input_batch = np.empty((batch_size, 27))
-    output_batch = np.empty((batch_size, 9))
-    action_matrix = np.empty(9, dtype="int")
-
+    # create datasets
     train_dataset = tf.data.Dataset.from_tensor_slices((data, labels))
     train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
 
@@ -69,7 +65,7 @@ def train_model(data, labels, model, epochs, batch_size = 64):
         test_loss.reset_states()
 
         for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
-            train_step(model, input_batch, output_batch)
+            train_step(model, x_batch_train, y_batch_train)
 
         print(
             f'Epoch {epoch + 1}, '
