@@ -4,35 +4,32 @@ Made by Lorenzo Mambretti
 """
 
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, Flatten, Conv2D
-from tensorflow.keras import Model
+from models.ConnectNN import ConnectNN
+from models.TicTacToeNN import TicTacToeNN
 print("tensorflow: ",tf.version.VERSION)
 import numpy as np
+import os
 import random
 import const
 
-class NN(Model):
+def get_model():
+    if const.GAME == 'TIC_TAC_TOE':
+        nnet = TicTacToeNN()
+    elif const.GAME == 'CONNECT4':
+        nnet = ConnectNN()
 
-    def __init__(self):
-        super(NN, self).__init__()
-        self.d1 = Dense(20, activation='relu')
-        self.d2 = Dense(20, activation='relu')
+    filename = os.path.join(const.WEIGHTS_PATH, "checkpoint_" + const.GAME)
+    try:
+        nnet.load_weights(filename)
+        print("get_model(): Load neural network weights")
+    except:
+        print("get_model():", filename, " not found")
 
-        self.policy_head = Dense(9, activation='tanh')
-        self.value_head = Dense(1, activation='tanh')
+    return nnet
 
-    def body(self, x):
-        x = self.d1(x)
-        x = self.d2(x)
-        return x
-
-    def policy(self, x):
-        x = self.body(x)
-        return self.policy_head(x)
-
-    def value(self, x):
-        x = self.body(x)
-        return self.value_head(x)
+def save_model(model):
+    filename = os.path.join(const.WEIGHTS_PATH, "checkpoint_" + const.GAME)
+    model.save_weights(filename)
 
 """
 define here the training process and all necessary accessories"""

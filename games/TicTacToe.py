@@ -1,4 +1,4 @@
-from Game import Game
+from games.Game import Game
 import numpy as np
 
 class TicTacToe(Game):

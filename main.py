@@ -5,12 +5,10 @@ Made by Lorenzo Mambretti
 Last Update: Dec 8 2020
 """
 import random
-import os
 import numpy as np
 import progressbar
 from File_storage import *
-from nn import NN, train_model
-import Game
+from nn import train_model, get_model, save_model
 import const
 import math
 import tensorflow as tf
@@ -179,7 +177,7 @@ def extract_data(game, model, min_visits = 10):
 
         pred = model.policy(node.board).numpy()[0]
 
-        for a in range(9):
+        for a in range(game.action_space):
             if a in node.Child_nodes.keys():
                 c = node.Child_nodes[a]
                 pred[a] = const.mct[c].Q()
@@ -201,12 +199,7 @@ def extract_data(game, model, min_visits = 10):
 def train():
     # create neural network
     global nnet
-    nnet = NN()
-    try:
-        nnet.load_weights(const.WEIGHTS_FILENAME)
-        print("load neural network weights")
-    except:
-        print(const.WEIGHTS_FILENAME, " not found")
+    nnet = get_model()
 
     # SIMULATION: playing and updating Monte Carlo Tree
     if len(const.mct) == 0:
@@ -235,10 +228,10 @@ def train():
         # save the Monte Carlo Tree
 
     # save model
-    nnet.save_weights(const.WEIGHTS_FILENAME)
+    save_model(nnet)
 
     # save latest monte carlo tree
-    save_mct(const.mct, const.MCT_FILENAME)
+    save_mct(const.mct, const.WEIGHTS_PATH, const.GAME)
 
 
 if __name__ == "__main__":

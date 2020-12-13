@@ -1,2 +1,4 @@
 /__pycache__/
 /build/
+/models/__pycache__/
+/games/__pycache__/
