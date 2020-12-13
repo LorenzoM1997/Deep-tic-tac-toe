@@ -23,7 +23,7 @@ class Node:
         self.board = board
 
     def update(self,r):
-        self.V = self.V + r
+        self.V += r
         self.N += 1
 
     def Q(self):
@@ -41,8 +41,9 @@ def check_new_node(game, current_node, a):
     """
     if a not in current_node.Child_nodes.keys():
         # generate child nodes
-        current_node.Child_nodes[a] = len(const.mct)
-        const.mct.append(Node(game.board2array()))
+        next_ix = len(const.mct)
+        current_node.Child_nodes[a] = next_ix
+        const.mct[next_ix] = Node(game.board2array())
 
 
 def random_move(game, current_node):
@@ -62,7 +63,7 @@ def choose_move(game, current_node):
             pred[a] = const.mct[c].Q()
             continue
 
-        if game.is_valid(a) == False:
+        if not game.is_valid(a):
             pred[a] = -2
 
     return np.argmax(pred)
@@ -77,7 +78,7 @@ def evaluation(game, episodes):
         game.restart(player = e % 2)
         current_node = const.mct[0]
 
-        while game.terminal == False:
+        while not game.terminal:
             # agent to evaluate
             if game.player == 0:
                 a = choose_move(game, current_node)
@@ -140,8 +141,9 @@ def simulation(game, episodes):
                 game.invert_board()
 
             check_new_node(game, current_node, a)
-            current_node = const.mct[current_node.Child_nodes[a]]
-            node_list.append([const.mct.index(current_node),game.player])
+            current_ix = current_node.Child_nodes[a]
+            current_node = const.mct[current_ix]
+            node_list.append([current_ix,game.player])
             #save state in node list
 
         #update all nodes
@@ -165,7 +167,7 @@ def extract_data(game, model, min_visits = 10):
     value_labels = np.empty((n_nodes, 1))
 
     i = 0
-    for node in const.mct:
+    for node in const.mct.values():
 
         # don't count if does't reach the min required
         if node.N < min_visits:
@@ -182,7 +184,7 @@ def extract_data(game, model, min_visits = 10):
                 c = node.Child_nodes[a]
                 pred[a] = const.mct[c].Q()
 
-            if game.is_valid(a) == False:
+            if not game.is_valid(a):
                 pred[a] = -1
 
         policy_labels[i] = pred
@@ -202,9 +204,9 @@ def train():
     nnet = get_model()
 
     # SIMULATION: playing and updating Monte Carlo Tree
-    if len(const.mct) == 0:
+    if not bool(const.mct):
         # start with a simulation
-        const.mct.append(Node(const.game.board2array()))
+        const.mct[0] = Node(const.game.board2array())
         simulation(const.game, const.N_ROLLOUTS)
 
     for _ in range(const.N_ITERATION_MAIN):
@@ -217,7 +219,9 @@ def train():
         # clear the monte carlo tree
         if (const.CLEAR_TREE_ON_ITERATION):
             const.game.restart()
-            const.mcd = [Node(const.game.board2array())]
+            const.mcd = {
+                0: Node(const.game.board2array())
+            }
 
         if (const.EVALUATE_ON_ITERATION):
             w, l = evaluation(const.game, const.EVALUATION_EPISODES)

@@ -16,5 +16,5 @@ def load_mct(path, game_name):
             mct = pickle.load(fp)
     else:
         print("load_mct(): Creating new Monte Carlo Tree.")
-        mct = []
+        mct = {}
     return mct
