@@ -30,16 +30,10 @@ class Node:
 
     def Q(self):
         c_puct = 0.2    #hyperparameter
-        P = np.max(nnet.call(self.board))
+        P = nnet.value(self.board)
 
-        if self.N == 0:
-            return P
-        else:
-            if bool(self.Child_nodes) == False:
-                Q = self.V
-            else:
-                Q = ((self.V * self.N) + P)/(self.N + 1)
-            return Q / self.N
+        Q = (self.V + P)/(self.N + 1)
+        return Q
 
 def check_new_node(game, current_node, a):
     """
@@ -61,7 +55,7 @@ def random_move(game, current_node):
 
 def choose_move(game, current_node):
 
-    pred = nnet.call(current_node.board).numpy()[0]
+    pred = nnet.policy(current_node.board).numpy()[0]
 
     # else find the best of the nodes
     for a in range(game.action_space):
@@ -132,7 +126,10 @@ def simulation(game, episodes):
             # choose move
             if game.player == 0:
                 #if player 1 not random
-                a = choose_move(game, current_node)
+                if random.random() < const.EPSILON:
+                    a = random_move(game, current_node)
+                else:
+                    a = choose_move(game, current_node)
                 r = game.step(a)
             else:
                 #if player 2 epsilon-greedy
@@ -161,12 +158,13 @@ def simulation(game, episodes):
 def play():
     import gui
 
-def extract_data(game, min_visits = 10):
+def extract_data(game, model, min_visits = 10):
     print("extract_data(): start")
 
     n_nodes = len(const.mct)
     data = np.empty((n_nodes, game.obs_space))
-    labels = np.empty((n_nodes, game.action_space))
+    policy_labels = np.empty((n_nodes, game.action_space))
+    value_labels = np.empty((n_nodes, 1))
 
     i = 0
     for node in const.mct:
@@ -177,7 +175,9 @@ def extract_data(game, min_visits = 10):
 
         data[i] = node.board
 
-        pred = nnet.call(node.board).numpy()[0]
+        value_labels[i] = np.array(node.V / node.N)
+
+        pred = model.policy(node.board).numpy()[0]
 
         for a in range(9):
             if a in node.Child_nodes.keys():
@@ -187,27 +187,28 @@ def extract_data(game, min_visits = 10):
             if game.is_valid(a) == False:
                 pred[a] = -1
 
-        labels[i] = pred
+        policy_labels[i] = pred
 
         i += 1
 
     data = data[:i,:]
-    labels = labels[:i, :]
+    policy_labels = policy_labels[:i, :]
+    value_labels = value_labels[:i, :]
     print("extract_data(): end")
 
-    return data, labels
+    return data, policy_labels, value_labels
 
 def train():
+    # create neural network
     global nnet
-
-    if const.SANITY_CHECK == True:
-        if len(const.mct) > 1000:
-            # sanity check
-            print("Single batch overfit.")
-            train_model(const.mct, nnet, 1, 1)
+    nnet = NN()
+    try:
+        nnet.load_weights(const.WEIGHTS_FILENAME)
+        print("load neural network weights")
+    except:
+        print(const.WEIGHTS_FILENAME, " not found")
 
     # SIMULATION: playing and updating Monte Carlo Tree
-
     if len(const.mct) == 0:
         # start with a simulation
         const.mct.append(Node(const.game.board2array()))
@@ -215,10 +216,10 @@ def train():
 
     for _ in range(const.N_ITERATION_MAIN):
 
-        data, labels = extract_data(const.game, const.MIN_VISITS)
+        data, p_labels, v_labels = extract_data(const.game, nnet, const.MIN_VISITS)
 
         # train the network
-        train_model(data, labels, nnet, const.EPOCHS)
+        train_model(data, p_labels, v_labels, nnet, const.EPOCHS)
 
         # clear the monte carlo tree
         if (const.CLEAR_TREE_ON_ITERATION):
@@ -226,8 +227,8 @@ def train():
             const.mcd = [Node(const.game.board2array())]
 
         if (const.EVALUATE_ON_ITERATION):
-            w, l = evaluation(const.game, 100)
-            t = 100 - (w + l)
+            w, l = evaluation(const.game, const.EVALUATION_EPISODES)
+            t = const.EVALUATION_EPISODES - (w + l)
             print("won: ", w, " ties: ", t, " lost: ",l)
 
         simulation(const.game, const.N_ROLLOUTS)
@@ -242,13 +243,6 @@ def train():
 
 if __name__ == "__main__":
     const.init()
-
-    # create neural network
-    nnet = NN()
-    try:
-        nnet.load_weights(const.WEIGHTS_FILENAME)
-    except:
-        print(const.WEIGHTS_FILENAME, " not found")
 
     parser = argparse.ArgumentParser(description='Train or play.')
     parser.add_argument('--play', dest='accumulate', action='store_const',

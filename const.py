@@ -8,12 +8,14 @@ from File_storage import *
 CLEAR_TREE_ON_ITERATION = False
 
 # number of epochs in the neural network training step
-EPOCHS = 3
+EPOCHS = 2
 
-EPSILON = 0.05
+EPSILON = 0.1
 
 # if true, run 100 games against a random agent
 EVALUATE_ON_ITERATION = True
+
+EVALUATION_EPISODES = 100
 
 # game to select
 # options:
@@ -26,17 +28,13 @@ GAME = 'TIC_TAC_TOE'
 MIN_VISITS = 20
 
 # the number of times we are doing the simulation, network training cycle.
-N_ITERATION_MAIN = 10
+N_ITERATION_MAIN = 20
 
 # the number of roll-outs in the simulation
 N_ROLLOUTS = 1000
 
-# whether to perform a sanity check of the system by training one epoch the
-# neural network.
-SANITY_CHECK = False
-
 # name of the file where the weights of the model are saved
-WEIGHTS_FILENAME = "/tmp/my_checkpoint"
+WEIGHTS_FILENAME = "/w/weights/my_checkpoint"
 
 cwd = os.getcwd()
 cwd = cwd + '\\tensorflow_logs'
