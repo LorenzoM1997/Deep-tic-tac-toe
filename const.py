@@ -27,6 +27,8 @@ GAME = 'TIC_TAC_TOE'
 # neural network
 MIN_VISITS = 20
 
+MCT_FILENAME = "weights/mct.txt"
+
 # the number of times we are doing the simulation, network training cycle.
 N_ITERATION_MAIN = 20
 
@@ -34,7 +36,7 @@ N_ITERATION_MAIN = 20
 N_ROLLOUTS = 1000
 
 # name of the file where the weights of the model are saved
-WEIGHTS_FILENAME = "/w/weights/my_checkpoint"
+WEIGHTS_FILENAME = "weights/my_checkpoint"
 
 cwd = os.getcwd()
 cwd = cwd + '\\tensorflow_logs'
@@ -51,4 +53,4 @@ def init():
 
     # initialize Monte Carlo tree
     global mct
-    mct = load_mct()
+    mct = load_mct(MCT_FILENAME)

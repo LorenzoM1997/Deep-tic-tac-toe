@@ -238,7 +238,7 @@ def train():
     nnet.save_weights(const.WEIGHTS_FILENAME)
 
     # save latest monte carlo tree
-    save_mct(const.mct)
+    save_mct(const.mct, const.MCT_FILENAME)
 
 
 if __name__ == "__main__":

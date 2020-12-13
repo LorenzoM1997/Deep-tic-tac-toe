@@ -1,20 +1,18 @@
 import os
 import pickle
 
-def save_mct(mct):
-    mct_filename = "mct.txt"
-    with open(mct_filename, "wb") as fp:   #Pickling
+def save_mct(mct, filename):
+    with open(filename, "wb") as fp:   #Pickling
         pickle.dump(mct, fp)
-    print("Monte Carlo Tree saved correctly")
+    print("save_mct(): Monte Carlo Tree saved correctly to file: ", filename)
 
-def load_mct():
-    mct_filename = "mct.txt"
-    if os.path.isfile(mct_filename):
+def load_mct(filename):
+    if os.path.isfile(filename):
         # load existing file
-        print("Found existing Monte Carlo Tree file. Opening it")
-        with open(mct_filename, "rb") as fp:   # Unpickling
+        print("load_mct(): Found existing Monte Carlo Tree file")
+        with open(filename, "rb") as fp:   # Unpickling
             mct = pickle.load(fp)
     else:
-        print("Creating new Monte Carlo Tree.")
+        print("load_mct(): Creating new Monte Carlo Tree.")
         mct = []
     return mct
