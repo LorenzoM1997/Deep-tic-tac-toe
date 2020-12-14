@@ -33,7 +33,8 @@ def save_model(model):
 
 """
 define here the training process and all necessary accessories"""
-loss_object = tf.keras.losses.MeanSquaredError()
+mse = tf.keras.losses.MeanSquaredError()
+cross_entropy = tf.keras.losses.CategoricalCrossentropy()
 optimizer = tf.keras.optimizers.Adam()
 
 train_policy_loss = tf.keras.metrics.Mean(name='train_policy_loss')
@@ -41,24 +42,19 @@ train_value_loss = tf.keras.metrics.Mean(name='train_value_loss')
 test_loss = tf.keras.metrics.Mean(name='test_loss')
 
 @tf.function
-def train_policy_step(model, data, labels):
+def train_step(model, data, p_labels, v_labels):
     with tf.GradientTape() as tape:
         # training=True is only needed if there are layers with different
         # behavior during training versus inference (e.g. Dropout).
-        predictions = model.policy(data)
-        loss = loss_object(labels, predictions)
+        p_pred = model.policy(data)
+        v_pred = model.value(data)
+        value_loss = mse(v_labels, v_pred)
+        policy_loss = mse(p_labels, p_pred)
+        loss = value_loss + policy_loss
     gradients = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-    train_policy_loss(loss)
-
-@tf.function
-def train_value_step(model, data, labels):
-    with tf.GradientTape() as tape:
-        predictions = model.value(data)
-        loss = loss_object(labels, predictions)
-    gradients = tape.gradient(loss, model.trainable_variables)
-    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-    train_value_loss(loss)
+    train_policy_loss(value_loss)
+    train_value_loss(policy_loss)
 
 @tf.function
 def test_step(model, data, labels):
@@ -71,11 +67,8 @@ def train_model(data, p_labels, v_labels, model, epochs, batch_size = 64):
     print("train_model() started")
 
     # create datasets
-    p_train_dataset = tf.data.Dataset.from_tensor_slices((data, p_labels))
-    p_train_dataset = p_train_dataset.shuffle(buffer_size=1024).batch(batch_size)
-
-    v_train_dataset = tf.data.Dataset.from_tensor_slices((data, p_labels))
-    v_train_dataset = v_train_dataset.shuffle(buffer_size=1024).batch(batch_size)
+    train_dataset = tf.data.Dataset.from_tensor_slices((data, p_labels, v_labels))
+    train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
 
     for epoch in range(epochs):
 
@@ -83,11 +76,8 @@ def train_model(data, p_labels, v_labels, model, epochs, batch_size = 64):
         train_value_loss.reset_states()
         test_loss.reset_states()
 
-        for step, (x_batch_train, y_batch_train) in enumerate(p_train_dataset):
-            train_policy_step(model, x_batch_train, y_batch_train)
-
-        for step, (x_batch_train, y_batch_train) in enumerate(v_train_dataset):
-            train_value_step(model, x_batch_train, y_batch_train)
+        for step, (x_batch_train, p_batch, v_batch) in enumerate(train_dataset):
+            train_step(model, x_batch_train, p_batch, v_batch)
 
         print(
             f'Epoch {epoch + 1}, '

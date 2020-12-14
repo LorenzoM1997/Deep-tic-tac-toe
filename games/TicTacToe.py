@@ -13,6 +13,15 @@ class TicTacToe(Game):
         self.terminal = False
         self.player = player
 
+        if player == 1:
+            self.invert_board()
+
+    def resume(self, player, board, valid_moves, terminal):
+        self.board = board
+        self.player = player
+        self.terminal = terminal
+        self.valid_moves = valid_moves
+
     def is_valid(self, action):
         if self.board[int(np.floor(action / 3))][action % 3] != 0:
             return False
@@ -87,7 +96,9 @@ class TicTacToe(Game):
         # checks if board is filled completely
         if 0 not in self.board:
             self.terminal = True
+            return 0
 
+        self.invert_board()
         return 0
 
     def render(self):
