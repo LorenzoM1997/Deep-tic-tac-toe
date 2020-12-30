@@ -11,7 +11,7 @@ rm -rf /var/lib/apt/lists
 
 RUN pip3 install \
 		argparse \
-		h5py \
+		h5py==2.10 \
 		numpy \
 		progressbar \
 		pyyaml \
