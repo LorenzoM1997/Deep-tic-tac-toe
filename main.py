@@ -31,7 +31,7 @@ def evaluation(game, episodes):
             # agent to evaluate
             if game.player == 0:
                 pred = strategy.predictions_after_rollouts(
-                    game, nnet, current_node, 50)
+                    game, nnet, current_node, 100)
                 a = np.argmax(pred)
                 r = game.step(a)
             else:

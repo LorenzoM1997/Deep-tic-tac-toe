@@ -16,11 +16,17 @@ class TicTacToe(Game):
         if player == 1:
             self.invert_board()
 
-    def resume(self, player, board, valid_moves, terminal):
-        self.board = board
-        self.player = player
-        self.terminal = terminal
-        self.valid_moves = valid_moves
+    def get_player(self):
+        return self.player
+
+    def is_terminal(self):
+        return self.terminal
+
+    def resume(self, other_game):
+        self.board = np.copy(other_game.board)
+        self.player = other_game.get_player()
+        self.terminal = other_game.is_terminal()
+        self.valid_moves = other_game.valid_moves.copy()
 
     def is_valid(self, action):
         if self.board[int(np.floor(action / 3))][action % 3] != 0:

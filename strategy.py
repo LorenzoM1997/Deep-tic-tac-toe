@@ -87,7 +87,7 @@ def predictions_after_rollouts(game, model, current_node, rollouts):
     for _ in range(rollouts):
 
         # create deep copy of the game and current node
-        g.resume(game.player, np.copy(game.board), game.valid_moves.copy(), game.terminal)
+        g.resume(game)
         node = mct[0]
         node_list = [[0, g.player]]
 
