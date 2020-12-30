@@ -13,6 +13,21 @@ class Connect4(Game):
         self.terminal = False
         self.player = player
 
+        if player == 1:
+            self.invert_board()
+
+    def get_player(self):
+        return self.player
+
+    def is_terminal(self):
+        return self.terminal
+
+    def resume(self, other_game):
+        self.board = np.copy(other_game.board)
+        self.player = other_game.get_player()
+        self.terminal = other_game.is_terminal()
+        self.valid_moves = other_game.valid_moves.copy()
+
     def is_valid(self, action):
         return action in self.valid_moves
 
@@ -85,7 +100,9 @@ class Connect4(Game):
         # check if the game is a tie
         if self.valid_moves == []:
             self.terminal = True
+            return 0
 
+        self.invert_board()
         return 0
 
 
@@ -94,10 +111,10 @@ class Connect4(Game):
         print the board to screen nicely
         """
 
-        for r in range(7):
-            print('\n|, end=""')
-            for c in range(6):
-                if self.board[i,j] == 1:
+        for r in range(6):
+            print('\n|', end="")
+            for c in range(7):
+                if self.board[r,c] == 1:
                     print(' X |', end="")
                 elif self.board[r,c] == 0:
                     print('   |', end="")

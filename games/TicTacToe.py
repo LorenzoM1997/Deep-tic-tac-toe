@@ -13,6 +13,21 @@ class TicTacToe(Game):
         self.terminal = False
         self.player = player
 
+        if player == 1:
+            self.invert_board()
+
+    def get_player(self):
+        return self.player
+
+    def is_terminal(self):
+        return self.terminal
+
+    def resume(self, other_game):
+        self.board = np.copy(other_game.board)
+        self.player = other_game.get_player()
+        self.terminal = other_game.is_terminal()
+        self.valid_moves = other_game.valid_moves.copy()
+
     def is_valid(self, action):
         if self.board[int(np.floor(action / 3))][action % 3] != 0:
             return False
@@ -87,7 +102,9 @@ class TicTacToe(Game):
         # checks if board is filled completely
         if 0 not in self.board:
             self.terminal = True
+            return 0
 
+        self.invert_board()
         return 0
 
     def render(self):

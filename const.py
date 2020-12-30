@@ -8,14 +8,14 @@ from File_storage import *
 CLEAR_TREE_ON_ITERATION = False
 
 # number of epochs in the neural network training step
-EPOCHS = 5
+EPOCHS = 10
 
 EPSILON = 0.1
 
 # if true, run 100 games against a random agent
 EVALUATE_ON_ITERATION = True
 
-EVALUATION_EPISODES = 100
+EVALUATION_EPISODES = 10
 
 # game to select
 # options:
@@ -31,7 +31,7 @@ MIN_VISITS = 20
 N_ITERATION_MAIN = 10
 
 # the number of roll-outs in the simulation
-N_ROLLOUTS = 1000
+N_ROLLOUTS = 20
 
 # name of the file where the weights of the model are saved
 WEIGHTS_PATH = "weights"

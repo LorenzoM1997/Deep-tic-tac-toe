@@ -7,11 +7,12 @@ class ConnectNN(Model):
 
     def __init__(self):
         super(ConnectNN, self).__init__()
-        self.d1 = Dense(100, activation='relu')
-        self.d2 = Dense(100, activation='relu')
+        reg_l2 = regularizers.l2(0.0001)
 
-        self.p1 = Dense(30, activation='relu',
-            kernel_regularizer=regularizers.l2(0.0001))
+        self.d1 = Dense(100, activation='relu', kernel_regularizer=reg_l2)
+        self.d2 = Dense(100, activation='relu', kernel_regularizer=reg_l2)
+
+        self.p1 = Dense(30, activation='relu', kernel_regularizer=reg_l2)
         self.policy_head = Dense(7, activation='tanh')
 
         self.v1 = Dense(10, activation='relu')

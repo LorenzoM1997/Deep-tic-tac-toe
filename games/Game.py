@@ -15,3 +15,21 @@ class Game:
                 val = self.board[row][col]
                 new_board[(3 * self.num_cols) * row + 3 * col + val] = 1
         return new_board.reshape(1, self.obs_space)
+
+    def restart(self, player=0):
+        raise NotImplementedError()
+
+    def resume(self, player, board, valid_moves, terminal):
+        raise NotImplementedError()
+
+    def step(self, action):
+        raise NotImplementedError()
+
+    def get_valid_moves(self):
+        raise NotImplementedError()
+
+    def get_player(self):
+        raise NotImplementedError()
+
+    def is_terminal(self):
+        raise NotImplementedError()
