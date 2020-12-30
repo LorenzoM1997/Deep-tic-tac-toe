@@ -10,8 +10,10 @@ RUN apt-get update && \
 rm -rf /var/lib/apt/lists
 
 RUN pip3 install \
+		argparse \
+		h5py \
 		numpy \
-		tensorflow \
 		progressbar \
 		pyyaml \
-		h5py
+		pytest \
+		tensorflow

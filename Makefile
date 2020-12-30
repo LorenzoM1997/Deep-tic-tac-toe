@@ -12,6 +12,10 @@ bash: builder FORCE
 	docker run $(MOUNT_WORKING_VOLUME) \
 			dttt:latest bash
 
+test: builder FORCE
+	docker run $(MOUNT_WORKING_VOLUME) \
+			dttt:latest pytest tests
+
 FORCE:
 
 build/.build:

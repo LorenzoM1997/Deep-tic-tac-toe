@@ -12,13 +12,13 @@ import os
 import random
 import const
 
-def get_model():
+def get_model(dir=const.WEIGHTS_PATH):
     if const.GAME == 'TIC_TAC_TOE':
         nnet = TicTacToeNN()
     elif const.GAME == 'CONNECT4':
         nnet = ConnectNN()
 
-    filename = os.path.join(const.WEIGHTS_PATH, "checkpoint_" + const.GAME)
+    filename = os.path.join(dir, "checkpoint_" + const.GAME)
     try:
         nnet.load_weights(filename)
         print("get_model(): Load neural network weights")
@@ -27,8 +27,8 @@ def get_model():
 
     return nnet
 
-def save_model(model):
-    filename = os.path.join(const.WEIGHTS_PATH, "checkpoint_" + const.GAME)
+def save_model(model, dir=const.WEIGHTS_PATH):
+    filename = os.path.join(dir, "checkpoint_" + const.GAME)
     model.save_weights(filename)
 
 """
